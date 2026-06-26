@@ -45,7 +45,7 @@ const MOCK_ASSETS: AssetInfo[] = [
 
 function OperationsContent() {
   const router = useRouter();
-  const [user, setUser] = useState<CurrentUser>({ id: "user-1", name: "연구원", role: "author" });
+  const [user, setUser] = useState<CurrentUser | null>(null);
   const [activeTab, setActiveTab] = useState<"assets" | "hr" | "schedule">("assets");
   const [records, setRecords] = useState<RecordEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -85,14 +85,6 @@ function OperationsContent() {
     setLoading(false);
   };
 
-  const toggleUser = () => {
-    const nextUser: CurrentUser = user.role === "author"
-      ? { id: "user-2", name: "QAU검토자", role: "reviewer" }
-      : { id: "user-1", name: "연구원", role: "author" };
-    setCurrentUser(nextUser);
-    setUser(nextUser);
-    window.dispatchEvent(new Event("storage"));
-  };
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -115,17 +107,11 @@ function OperationsContent() {
             </div>
           </div>
 
-          <button
-            onClick={toggleUser}
-            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all border cursor-pointer ${
-              user.role === "author"
-                ? "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
-                : "bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100"
-            }`}
-            title="계정 역할 전환"
-          >
-            <span>👤 {user.role === "author" ? "연구원" : "검토자"}</span>
-          </button>
+          {user && (
+            <span className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-slate-100 text-slate-600 border border-slate-200">
+              👤 {user.name}
+            </span>
+          )}
         </div>
       </header>
 
@@ -187,7 +173,7 @@ function OperationsContent() {
                       </div>
 
                       <div>
-                        {user.role === "author" ? (
+                        {user ? (
                           <Link
                             href={`/record/new?pdf=${encodeURIComponent(asset.pdfPath)}&sopId=${asset.sopId}&equipmentId=${asset.id}&categoryType=operational`}
                             className="inline-flex items-center justify-center text-xs bg-blue-600 text-white font-bold px-3 py-1.5 rounded-lg shadow-sm hover:bg-blue-700"
@@ -219,7 +205,7 @@ function OperationsContent() {
                     <div key={emp.id} className="py-4 space-y-3">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-sm font-bold text-slate-800">{emp.name} ({emp.role === "author" ? "연구원" : "QA원"})</p>
+                          <p className="text-sm font-bold text-slate-800">{emp.name} ({emp.department})</p>
                           <p className="text-xs text-slate-400 mt-0.5">{emp.department} · {emp.email}</p>
                         </div>
                         <span className="text-[10px] text-slate-400 font-mono">사번: {emp.id}</span>
@@ -239,7 +225,7 @@ function OperationsContent() {
                                 >
                                   조회
                                 </Link>
-                              ) : user.role === "author" ? (
+                              ) : user ? (
                                 <Link
                                   href={`/record/new?pdf=${encodeURIComponent(form.pdfPath)}&sopId=${form.sopId}&employeeId=${emp.id}&categoryType=operational`}
                                   className="text-[10px] bg-blue-50 text-blue-600 border border-blue-200 px-1.5 py-0.5 rounded font-bold hover:bg-blue-100"
@@ -291,7 +277,7 @@ function OperationsContent() {
                           >
                             ✓ 기록 열람
                           </Link>
-                        ) : user.role === "author" ? (
+                        ) : user ? (
                           <Link
                             href={`/record/new?pdf=${encodeURIComponent(scheduleForms[0].pdfPath)}&sopId=${scheduleForms[0].sopId}&scheduleYearMonth=${ym}&categoryType=operational`}
                             className="text-[10px] text-blue-600 font-bold hover:underline block text-center border border-blue-200 rounded bg-blue-50 py-0.5"

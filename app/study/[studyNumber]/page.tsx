@@ -4,7 +4,8 @@ import { useParams, useRouter } from "next/navigation";
 import { getStudiesList, saveStudiesList, getStudyRecords } from "@/lib/study-data";
 import type { StudyInfo } from "@/lib/study-data";
 import type { RecordEntry, CurrentUser } from "@/lib/record-data";
-import { getCurrentUser, setCurrentUser } from "@/lib/record-data";
+import { getCurrentUser } from "@/lib/record-data";
+import { canReviewStudyBinder } from "@/lib/permissions";
 import Link from "next/link";
 import QAStatementModal from "@/components/record/QAStatementModal";
 
@@ -12,15 +13,21 @@ function StudyBinderContent() {
   const { studyNumber } = useParams<{ studyNumber: string }>();
   const router = useRouter();
 
-  const [user, setUser] = useState<CurrentUser>({ id: "user-1", name: "연구원", role: "author" });
+  const [user, setUser] = useState<CurrentUser | null>(null);
   const [study, setStudy] = useState<StudyInfo | null>(null);
   const [records, setRecords] = useState<RecordEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [showQAModal, setShowQAModal] = useState(false);
 
   useEffect(() => {
-    setUser(getCurrentUser());
-    const syncUser = () => setUser(getCurrentUser());
+    const u = getCurrentUser();
+    if (!u) { router.push("/login"); return; }
+    setUser(u);
+    const syncUser = () => {
+      const updated = getCurrentUser();
+      if (!updated) router.push("/login");
+      else setUser(updated);
+    };
     window.addEventListener("storage", syncUser);
 
     const loadData = async () => {
@@ -40,14 +47,6 @@ function StudyBinderContent() {
     return () => window.removeEventListener("storage", syncUser);
   }, [studyNumber]);
 
-  const toggleUser = () => {
-    const nextUser: CurrentUser = user.role === "author"
-      ? { id: "user-2", name: "QAU검토자", role: "reviewer" }
-      : { id: "user-1", name: "연구원", role: "author" };
-    setCurrentUser(nextUser);
-    setUser(nextUser);
-    window.dispatchEvent(new Event("storage"));
-  };
 
   const handleReload = async () => {
     const studyRecords = await getStudyRecords(studyNumber);
@@ -130,17 +129,11 @@ function StudyBinderContent() {
             <p className="text-xs font-mono text-slate-400">GLP Study Binder</p>
             <h1 className="text-base font-bold text-slate-900 truncate">{study.studyNumber} · {study.title}</h1>
           </div>
-          <button
-            onClick={toggleUser}
-            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all border cursor-pointer ${
-              user.role === "author"
-                ? "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
-                : "bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100"
-            }`}
-            title="계정 역할 전환"
-          >
-            <span>👤 {user.role === "author" ? "연구원" : "검토자"}</span>
-          </button>
+          {user && (
+            <span className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-slate-100 text-slate-600 border border-slate-200">
+              👤 {user.name}
+            </span>
+          )}
         </div>
       </header>
 
@@ -153,7 +146,7 @@ function StudyBinderContent() {
             <p className="text-base font-bold">{statusLabel.text}</p>
           </div>
           
-          {study.status === "ongoing" && user.role === "author" && (
+          {study.status === "ongoing" && user && !canReviewStudyBinder(user.role) && (
             <button
               onClick={handleSubmitToQA}
               className="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold shadow-sm hover:bg-blue-700 transition-colors"
@@ -162,7 +155,7 @@ function StudyBinderContent() {
             </button>
           )}
 
-          {study.status === "submitted_for_qa" && user.role === "reviewer" && (
+          {study.status === "submitted_for_qa" && user && canReviewStudyBinder(user.role) && (
             <button
               onClick={() => setShowQAModal(true)}
               className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold shadow-sm hover:bg-indigo-700 transition-colors"
@@ -243,7 +236,7 @@ function StudyBinderContent() {
                         <span className="text-xs text-red-500 font-semibold bg-red-50 px-2 py-1 rounded border border-red-150">
                           미작성
                         </span>
-                        {study.status === "ongoing" && user.role === "author" ? (
+                        {study.status === "ongoing" && user && !canReviewStudyBinder(user.role) ? (
                           <Link
                             href={`/record/new?pdf=${encodeURIComponent(form.pdfPath)}&sopId=${form.sopId}&studyNumber=${study.studyNumber}&categoryType=test`}
                             className="text-xs text-blue-600 font-bold hover:underline"
@@ -347,7 +340,7 @@ function StudyBinderContent() {
       {/* QA Signoff Modal */}
       <QAStatementModal
         isOpen={showQAModal}
-        userName={user.name}
+        userName={user?.name ?? ""}
         onConfirm={handleQASignoff}
         onCancel={() => setShowQAModal(false)}
       />

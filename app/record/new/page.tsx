@@ -35,7 +35,7 @@ function NewRecordContent() {
   const formTitle = nameWithoutExt.replace(/_/g, " ");
 
   const [entry, setEntry] = useState<RecordEntry>(() => {
-    const initialUser = typeof window !== "undefined" ? getCurrentUser() : { id: "user-1", name: "연구원", role: "author" };
+    const initialUser = typeof window !== "undefined" ? getCurrentUser() : null;
     const cleanSopId = sopId || "generic";
     const cleanSopNumber = cleanSopId.replace(/-\d{2}$/, "");
 
@@ -67,8 +67,8 @@ function NewRecordContent() {
       editHistory: [],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      createdBy: initialUser.id,
-      createdByName: initialUser.name,
+      createdBy: initialUser?.id ?? "",
+      createdByName: initialUser?.name ?? "",
     };
   });
 
@@ -166,8 +166,8 @@ function NewRecordContent() {
       oldValue: "작성 완료된 데이터",
       newValue: "필기 및 데이터 수정 개시",
       reason: reason,
-      editedBy: user.id,
-      editedByName: user.name,
+      editedBy: user?.id ?? "",
+      editedByName: user?.name ?? "",
       editedAt: new Date().toISOString(),
       signatureImage: signatureImage,
     };

@@ -3,8 +3,9 @@ import { useState, useEffect, Suspense } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { v4 as uuidv4 } from "uuid";
 import type { RecordEntry, EditHistoryItem, TypedTextItem, CanvasSignatureItem, StrikeThroughItem } from "@/lib/record-data";
-import { getCurrentUser, setCurrentUser } from "@/lib/record-data";
+import { getCurrentUser } from "@/lib/record-data";
 import type { CurrentUser } from "@/lib/record-data";
+import { canSignAsAuthor, canSignAsReviewer } from "@/lib/permissions";
 import { getRecordEntry, saveRecordEntry } from "@/lib/audit-logger";
 import { EditHistoryModal } from "@/components/record/EditHistoryModal";
 import dynamic from "next/dynamic";
@@ -15,7 +16,8 @@ const PDFCanvasViewer = dynamic(() => import("@/components/record/PDFCanvasViewe
 function EntryContent() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const [user, setUser] = useState<CurrentUser>({ id: "user-1", name: "연구원", role: "author" });
+  const [user, setUser] = useState<CurrentUser | null>(null);
+  const [signingAs, setSigningAs] = useState<"author" | "reviewer">("author");
   const [entry, setEntry] = useState<RecordEntry | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -25,8 +27,15 @@ function EntryContent() {
   const [showEditModal, setShowEditModal] = useState(false);
 
   useEffect(() => {
-    setUser(getCurrentUser());
-    const syncUser = () => setUser(getCurrentUser());
+    const u = getCurrentUser();
+    if (!u) { router.push("/login"); return; }
+    setUser(u);
+    if (!canSignAsAuthor(u.role) && canSignAsReviewer(u.role)) setSigningAs("reviewer");
+    const syncUser = () => {
+      const updated = getCurrentUser();
+      if (!updated) router.push("/login");
+      else setUser(updated);
+    };
     window.addEventListener("storage", syncUser);
 
     getRecordEntry(id).then(e => {
@@ -43,14 +52,6 @@ function EntryContent() {
     return () => window.removeEventListener("storage", syncUser);
   }, [id]);
 
-  const toggleUser = () => {
-    const nextUser: CurrentUser = user.role === "author"
-      ? { id: "user-2", name: "QAU검토자", role: "reviewer" }
-      : { id: "user-1", name: "연구원", role: "author" };
-    setCurrentUser(nextUser);
-    setUser(nextUser);
-    window.dispatchEvent(new Event("storage"));
-  };
 
   const handleDraw = (page: number, base64: string) => {
     if (!entry) return;
@@ -141,8 +142,8 @@ function EntryContent() {
       oldValue: "작성 완료된 데이터",
       newValue: "필기 및 데이터 수정 개시",
       reason: reason,
-      editedBy: user.id,
-      editedByName: user.name,
+      editedBy: user?.id ?? "",
+      editedByName: user?.name ?? "",
       editedAt: new Date().toISOString(),
       signatureImage: signatureImage,
     };
@@ -209,17 +210,30 @@ function EntryContent() {
             <p className="text-xs font-mono text-slate-400">{entry.sopNumber}</p>
             <h1 className="text-base font-bold text-slate-900 truncate">{entry.formTitle}</h1>
           </div>
-          <button
-            onClick={toggleUser}
-            className={`mr-2 flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all border cursor-pointer ${
-              user.role === "author"
-                ? "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
-                : "bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100"
-            }`}
-            title="계정 역할 전환"
-          >
-            <span>👤 {user.role === "author" ? "연구원" : "검토자"}</span>
-          </button>
+          {user && (() => {
+            const canBoth = canSignAsAuthor(user.role) && canSignAsReviewer(user.role);
+            return (
+              <div className="mr-2 flex items-center gap-1">
+                <span className="text-[10px] text-slate-500 font-semibold">{user.name}</span>
+                {canBoth ? (
+                  <button
+                    onClick={() => setSigningAs(s => s === "author" ? "reviewer" : "author")}
+                    className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border cursor-pointer transition-all ${
+                      signingAs === "author" ? "bg-blue-50 text-blue-700 border-blue-200" : "bg-purple-50 text-purple-700 border-purple-200"
+                    }`}
+                  >
+                    {signingAs === "author" ? "✍ 작성자 서명" : "✅ 확인자 서명"}
+                  </button>
+                ) : (
+                  <span className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border ${
+                    signingAs === "author" ? "bg-blue-50 text-blue-700 border-blue-200" : "bg-purple-50 text-purple-700 border-purple-200"
+                  }`}>
+                    {signingAs === "author" ? "✍ 작성자" : "✅ 확인자"}
+                  </span>
+                )}
+              </div>
+            );
+          })()}
           <button onClick={handleSave} disabled={saving || (entry.status === "complete" && !isEditUnlocked)}
             className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold disabled:opacity-40 cursor-pointer">
             {saving ? "저장 중..." : "저장"}
@@ -248,7 +262,7 @@ function EntryContent() {
             onDrawSignature={handleDrawSignature}
             onDrawStrike={handleDrawStrike}
             onAttemptEdit={handleAttemptEdit}
-            currentUser={user}
+            currentUser={user ? { ...user, signingAs } : { id: "", name: "", role: "investigator", signingAs }}
           />
         </div>
 
@@ -287,7 +301,7 @@ function EntryContent() {
             onConfirm={confirmUnlockEdit}
             onCancel={() => setShowEditModal(false)}
             simplified
-            userName={user.name}
+            userName={user?.name ?? ""}
           />
         )}
 

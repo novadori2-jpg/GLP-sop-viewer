@@ -12,6 +12,9 @@ import RecordList from "@/components/record/RecordList";
 import { getCurrentUser } from "@/lib/record-data";
 import type { CurrentUser } from "@/lib/record-data";
 import { canCreateRecord } from "@/lib/permissions";
+import dynamic from "next/dynamic";
+
+const PDFViewer = dynamic(() => import("@/components/PDFViewer"), { ssr: false });
 
 // 기존 PDFViewer 컴포넌트는 사용되지 않으므로 제거하고, 
 // 대신 아래의 dynamic tab iframe 뷰어를 적용합니다.
@@ -230,15 +233,9 @@ export default function SOPDetailPage() {
                   ))}
                 </div>
               )}
-              {/* PDF 뷰어 프레임 */}
-              <div className="pdf-container rounded-xl overflow-hidden border border-slate-200 shadow-inner bg-slate-100 h-[600px]">
-                <iframe
-                  src={activePdfUrl}
-                  title="PDF Document Viewer"
-                  className="w-full h-full"
-                  style={{ border: "none" }}
-                  aria-label="PDF Document"
-                />
+              {/* PDF 뷰어 */}
+              <div className="rounded-xl overflow-hidden border border-slate-200 shadow-inner bg-slate-100 overflow-y-auto max-h-[80vh]">
+                <PDFViewer pdfUrl={activePdfUrl} />
               </div>
             </div>
           )}

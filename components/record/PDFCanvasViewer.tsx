@@ -45,8 +45,8 @@ export default function PDFCanvasViewer({
   // 도구 상태 확장: 펜, 지우개, 텍스트, 서명, 취선
   const [tool, setTool] = useState<"pen" | "eraser" | "text" | "signature" | "strikethrough">("pen");
   const [penSize, setPenSize] = useState<number>(2);
-  // 서명 이름/날짜 표기 위치: "below"=서명 하단, "left"=서명 좌측
   const [sigLabelPos, setSigLabelPos] = useState<"below" | "left">("below");
+  const [userScale, setUserScale] = useState<number>(1); // 사용자 줌 배율 (scale에 곱해짐)
 
   // 입력 모달/팝업 상태
   const [activeTextInput, setActiveTextInput] = useState<{ pageNumber: number; x: number; y: number } | null>(null);
@@ -98,7 +98,7 @@ export default function PDFCanvasViewer({
       const originalWidth = firstPage.getViewport({ scale: 1 }).width;
       
       const calculatedScale = (width - 16) / originalWidth;
-      setScale(calculatedScale > 0.3 ? calculatedScale : 0.8);
+      setScale((calculatedScale > 0.3 ? calculatedScale : 0.8));
     };
 
     handleResize();
@@ -274,6 +274,19 @@ export default function PDFCanvasViewer({
             </div>
           )}
 
+          {/* 확대/축소 */}
+          <div className="flex items-center gap-1 border-l border-slate-700 pl-3 ml-auto">
+            <button
+              onClick={() => setUserScale(s => Math.max(0.5, +(s - 0.25).toFixed(2)))}
+              className="w-7 h-7 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 text-sm font-bold flex items-center justify-center cursor-pointer"
+            >−</button>
+            <span className="text-[10px] text-slate-400 w-9 text-center">{Math.round(userScale * 100)}%</span>
+            <button
+              onClick={() => setUserScale(s => Math.min(3, +(s + 0.25).toFixed(2)))}
+              className="w-7 h-7 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 text-sm font-bold flex items-center justify-center cursor-pointer"
+            >+</button>
+          </div>
+
           {/* 서명 이름/날짜 위치 토글 */}
           {tool === "signature" && (
             <div className="flex items-center gap-1.5 border-l border-slate-700 pl-3">
@@ -306,7 +319,8 @@ export default function PDFCanvasViewer({
             key={pageNumber}
             pdfDoc={pdfDoc}
             pageNumber={pageNumber}
-            scale={scale}
+            scale={scale * userScale}
+            onScaleChange={(delta) => setUserScale(s => Math.min(3, Math.max(0.5, +(s * delta).toFixed(2))))}
             drawingData={drawings[pageNumber]}
             readOnly={readOnly}
             tool={tool}
@@ -362,6 +376,7 @@ interface PageRowProps {
   sigLabelPos: "below" | "left";
   onDraw: (base64: string) => void;
   onAttemptEdit?: () => void;
+  onScaleChange: (delta: number) => void;
   
   typedTexts?: TypedTextItem[];
   canvasSignatures?: CanvasSignatureItem[];
@@ -389,6 +404,7 @@ function PDFPageRow({
   sigLabelPos,
   onDraw,
   onAttemptEdit,
+  onScaleChange,
   typedTexts = [],
   canvasSignatures = [],
   strikeThroughs = [],
@@ -580,22 +596,62 @@ function PDFPageRow({
     lastDrawnBase64.current = drawingData;
   }, [drawingData, dimensions, renderStaticElements]);
 
-  // 3. 모바일 터치 스크롤링 가로채기 (필기 도중 화면이 움직이는 현상 방지)
+  // 3. 터치 처리: 1손가락=필기(스크롤 차단), 2손가락=스크롤/핀치줌(필기 차단)
+  const pinchStartDist = useRef<number | null>(null);
+  const pinchStartScale = useRef<number>(1);
+
   useEffect(() => {
     const canvas = drawCanvasRef.current;
     if (!canvas) return;
-    const preventDefault = (e: TouchEvent) => {
-      if (!readOnly && (tool === "pen" || tool === "strikethrough")) {
-        e.preventDefault();
+
+    const getTouchDist = (touches: TouchList) => {
+      const dx = touches[0].clientX - touches[1].clientX;
+      const dy = touches[0].clientY - touches[1].clientY;
+      return Math.hypot(dx, dy);
+    };
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 1 && !readOnly && (tool === "pen" || tool === "strikethrough")) {
+        e.preventDefault(); // 1손가락 필기 중 스크롤 방지
+      }
+      if (e.touches.length === 2) {
+        pinchStartDist.current = getTouchDist(e.touches);
+        pinchStartScale.current = 1;
+        e.preventDefault(); // 핀치 시작 시 기본 브라우저 줌 방지
       }
     };
-    canvas.addEventListener("touchstart", preventDefault, { passive: false });
-    canvas.addEventListener("touchmove", preventDefault, { passive: false });
-    return () => {
-      canvas.removeEventListener("touchstart", preventDefault);
-      canvas.removeEventListener("touchmove", preventDefault);
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 1 && !readOnly && (tool === "pen" || tool === "strikethrough")) {
+        e.preventDefault(); // 1손가락 필기 중 스크롤 방지
+      }
+      if (e.touches.length === 2 && pinchStartDist.current !== null) {
+        e.preventDefault();
+        const newDist = getTouchDist(e.touches);
+        const delta = newDist / pinchStartDist.current;
+        // 핀치가 충분히 변화했을 때만 스케일 업데이트
+        if (Math.abs(delta - pinchStartScale.current) > 0.02) {
+          onScaleChange(delta / pinchStartScale.current);
+          pinchStartScale.current = delta;
+        }
+      }
     };
-  }, [readOnly, tool]);
+
+    const onTouchEnd = (e: TouchEvent) => {
+      if (e.touches.length < 2) {
+        pinchStartDist.current = null;
+      }
+    };
+
+    canvas.addEventListener("touchstart", onTouchStart, { passive: false });
+    canvas.addEventListener("touchmove", onTouchMove, { passive: false });
+    canvas.addEventListener("touchend", onTouchEnd, { passive: true });
+    return () => {
+      canvas.removeEventListener("touchstart", onTouchStart);
+      canvas.removeEventListener("touchmove", onTouchMove);
+      canvas.removeEventListener("touchend", onTouchEnd);
+    };
+  }, [readOnly, tool, onScaleChange]);
 
   const getPos = (e: React.PointerEvent): { x: number; y: number } => {
     const rect = drawCanvasRef.current!.getBoundingClientRect();
@@ -616,6 +672,9 @@ function PDFPageRow({
   };
 
   const onPointerDown = (e: React.PointerEvent) => {
+    // 2손가락(핀치/스크롤) 중에는 필기 시작 무시
+    if (e.pointerType === "touch" && (e.currentTarget as HTMLElement).querySelectorAll(":active").length >= 2) return;
+
     if (readOnly) {
       e.preventDefault();
       onAttemptEdit?.();

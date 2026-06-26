@@ -62,35 +62,27 @@ export default function PDFCanvasViewer({
   // 문서 내에 서명이 하나라도 들어갔는지 판별
   const hasSignature = Object.values(canvasSignatures).some((arr) => arr && arr.length > 0);
 
-  // 1. PDF.js CDN 비동기 로딩
+  // 1. PDF.js npm 패키지 동적 로딩
   useEffect(() => {
     const loadPdfjs = async () => {
       setLoading(true);
-      if (!(window as any).pdfjsLib) {
-        const script = document.createElement("script");
-        script.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
-        script.onload = async () => {
-          const pdfjsLib = (window as any).pdfjsLib;
-          pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
-          await loadDocument(pdfjsLib);
-        };
-        document.body.appendChild(script);
-      } else {
-        await loadDocument((window as any).pdfjsLib);
-      }
-    };
 
-    const loadDocument = async (pdfjsLib: any) => {
-      try {
-        const loadingTask = pdfjsLib.getDocument(pdfUrl);
-        const pdf = await loadingTask.promise;
-        setPdfDoc(pdf);
-        setNumPages(pdf.numPages);
-        setLoading(false);
-      } catch (err) {
-        console.error("PDF 로딩 실패:", err);
-        setLoading(false);
-      }
+      const loadDocument = async (pdfjsLib: any) => {
+        try {
+          const loadingTask = pdfjsLib.getDocument({ url: pdfUrl });
+          const pdf = await loadingTask.promise;
+          setPdfDoc(pdf);
+          setNumPages(pdf.numPages);
+          setLoading(false);
+        } catch (err) {
+          console.error("PDF 로딩 실패:", err);
+          setLoading(false);
+        }
+      };
+
+      const pdfjsLib = await import("pdfjs-dist");
+      pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+      await loadDocument(pdfjsLib);
     };
 
     loadPdfjs();

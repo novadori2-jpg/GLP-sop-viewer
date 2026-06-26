@@ -1,8 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { login, getRoleLabel, getAllUsers } from "@/lib/auth";
-import { getCurrentUser } from "@/lib/record-data";
+import { setCurrentUser, getCurrentUser } from "@/lib/record-data";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -10,14 +9,13 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [showQuick, setShowQuick] = useState(false);
 
   useEffect(() => {
     const user = getCurrentUser();
     if (user) router.push("/");
   }, [router]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!id.trim() || !password.trim()) {
       setError("아이디와 비밀번호를 입력해 주세요.");
@@ -25,28 +23,30 @@ export default function LoginPage() {
     }
     setLoading(true);
     setError("");
-    setTimeout(() => {
-      const sessionUser = login(id.trim(), password.trim());
-      setLoading(false);
-      if (sessionUser) {
-        router.push("/");
-      } else {
-        setError("아이디 또는 비밀번호가 잘못되었습니다.");
+
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: id.trim(), password: password.trim() }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error ?? "로그인에 실패했습니다.");
+        return;
       }
-    }, 400);
-  };
 
-  const handleQuickLogin = (quickId: string, quickPw: string) => {
-    setLoading(true);
-    setError("");
-    setTimeout(() => {
-      const sessionUser = login(quickId, quickPw);
+      // 세션 정보를 localStorage에 저장 (기존 getCurrentUser() 호환)
+      setCurrentUser(data.user);
+      router.push("/");
+    } catch {
+      setError("서버 연결에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+    } finally {
       setLoading(false);
-      if (sessionUser) router.push("/");
-    }, 200);
+    }
   };
-
-  const users = getAllUsers();
 
   return (
     <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 relative overflow-hidden font-sans">
@@ -55,7 +55,6 @@ export default function LoginPage() {
 
       <div className="w-full max-w-lg bg-white/10 backdrop-blur-xl border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl relative z-10 text-white animate-in fade-in zoom-in duration-300">
 
-        {/* Title */}
         <div className="text-center space-y-2 mb-8">
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-blue-600 text-white text-2xl font-bold shadow-lg mb-2">
             🧬
@@ -68,7 +67,6 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* Login Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1">
             <label className="text-xs font-semibold text-slate-300 block">아이디</label>
@@ -112,36 +110,6 @@ export default function LoginPage() {
             )}
           </button>
         </form>
-
-        {/* Quick login toggle */}
-        <button
-          type="button"
-          onClick={() => setShowQuick(v => !v)}
-          className="w-full mt-5 text-[10px] text-slate-500 hover:text-slate-300 transition-colors cursor-pointer flex items-center justify-center gap-1"
-        >
-          <span>{showQuick ? "▲" : "▼"}</span>
-          <span>간편 시뮬레이션 로그인 {showQuick ? "숨기기" : "보기"}</span>
-        </button>
-
-        {showQuick && (
-          <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-            {users.map((cred) => (
-              <button
-                key={cred.id}
-                onClick={() => handleQuickLogin(cred.id, cred.password)}
-                disabled={loading}
-                className="p-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-left hover:border-blue-500/50 transition-all cursor-pointer flex flex-col group"
-              >
-                <span className="font-bold text-slate-200 group-hover:text-blue-400 transition-colors">
-                  {cred.name}
-                </span>
-                <span className="text-[9px] text-slate-400 mt-0.5">
-                  {getRoleLabel(cred.role)}
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
       </div>
     </div>
   );

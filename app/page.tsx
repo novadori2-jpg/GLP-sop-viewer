@@ -56,7 +56,8 @@ function SOPListContent() {
     };
   }, [router]);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
     const { logout } = require("@/lib/auth");
     logout();
     router.push("/login");

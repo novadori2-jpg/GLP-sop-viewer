@@ -599,6 +599,7 @@ function PDFPageRow({
   // 3. 터치 처리: 1손가락=필기(스크롤 차단), 2손가락=스크롤/핀치줌(필기 차단)
   const pinchStartDist = useRef<number | null>(null);
   const pinchStartScale = useRef<number>(1);
+  const isPinching = useRef<boolean>(false); // 핀치 중 필기 완전 차단용
 
   useEffect(() => {
     const canvas = drawCanvasRef.current;
@@ -615,6 +616,9 @@ function PDFPageRow({
         e.preventDefault(); // 1손가락 필기 중 스크롤 방지
       }
       if (e.touches.length === 2) {
+        isPinching.current = true;
+        setDrawing(false); // 이미 그리고 있던 경우 즉시 중단
+        lastPos.current = null;
         pinchStartDist.current = getTouchDist(e.touches);
         pinchStartScale.current = 1;
         e.preventDefault(); // 핀치 시작 시 기본 브라우저 줌 방지
@@ -631,8 +635,24 @@ function PDFPageRow({
         const delta = newDist / pinchStartDist.current;
         // 핀치가 충분히 변화했을 때만 스케일 업데이트
         if (Math.abs(delta - pinchStartScale.current) > 0.02) {
-          onScaleChange(delta / pinchStartScale.current);
+          const ratio = delta / pinchStartScale.current;
+
+          // 핀치 중심점 (viewport 기준)
+          const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+          const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+          const sx = window.scrollX;
+          const sy = window.scrollY;
+
+          onScaleChange(ratio);
           pinchStartScale.current = delta;
+
+          // 스케일 변경 후 핀치 중심이 같은 화면 위치에 오도록 스크롤 보정
+          requestAnimationFrame(() => {
+            window.scrollBy(
+              (sx + midX) * (ratio - 1),
+              (sy + midY) * (ratio - 1)
+            );
+          });
         }
       }
     };
@@ -640,6 +660,7 @@ function PDFPageRow({
     const onTouchEnd = (e: TouchEvent) => {
       if (e.touches.length < 2) {
         pinchStartDist.current = null;
+        isPinching.current = false;
       }
     };
 
@@ -672,7 +693,8 @@ function PDFPageRow({
   };
 
   const onPointerDown = (e: React.PointerEvent) => {
-    // 2손가락(핀치/스크롤) 중에는 필기 시작 무시
+    // 핀치 중이거나 2손가락 터치 중에는 필기 시작 무시
+    if (isPinching.current) return;
     if (e.pointerType === "touch" && (e.currentTarget as HTMLElement).querySelectorAll(":active").length >= 2) return;
 
     if (readOnly) {

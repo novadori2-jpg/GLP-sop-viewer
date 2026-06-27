@@ -174,6 +174,11 @@ export function addStudy(study: StudyInfo): void {
   saveStudiesList(list);
 }
 
+export function deleteStudy(studyNumber: string): void {
+  const list = getStudiesList().filter(s => s.studyNumber !== studyNumber);
+  saveStudiesList(list);
+}
+
 export function saveStudiesList(studies: StudyInfo[]) {
   if (typeof window === "undefined") return;
   localStorage.setItem(STORAGE_KEY_STUDIES, JSON.stringify(studies));

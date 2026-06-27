@@ -2,8 +2,6 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getCurrentUser } from "@/lib/record-data";
-import { getAllUsers } from "@/lib/auth";
-import type { UserCredential } from "@/lib/auth";
 import {
   generateStudyNumber, addStudy, getStudiesList,
   STUDY_TYPE_LABELS,
@@ -11,6 +9,14 @@ import {
 import type { StudyType, BinderType, BinderForm, StudyInfo } from "@/lib/study-data";
 
 type Step = "type" | "info" | "forms" | "confirm";
+
+interface DBUser {
+  user_id: string;
+  name: string;
+  role: string;
+  email?: string;
+  department?: string;
+}
 
 interface PdfFile {
   filename: string;
@@ -38,14 +44,17 @@ export default function NewBinderPage() {
   const [selectedForms, setSelectedForms] = useState<Record<string, number>>({});
   const [pdfSearch, setPdfSearch] = useState("");
 
-  const [users, setUsers] = useState<UserCredential[]>([]);
+  const [users, setUsers] = useState<DBUser[]>([]);
   const [studies, setStudies] = useState<StudyInfo[]>([]);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     const u = getCurrentUser();
     if (!u) { router.push("/login"); return; }
-    setUsers(getAllUsers());
+    // Supabase에 등록된 실제 사용자 목록 로드
+    fetch("/api/users").then(r => r.json()).then(data => {
+      if (Array.isArray(data)) setUsers(data);
+    });
     setStudies(getStudiesList().filter(s => s.binderType === "study"));
   }, [router]);
 
@@ -73,7 +82,7 @@ export default function NewBinderPage() {
   const qapUsers = users.filter(u => u.role === "qap");
   const tfmUsers = users.filter(u => u.role === "tfm");
 
-  const getUser = (id: string) => users.find(u => u.id === id);
+  const getUser = (id: string) => users.find(u => u.user_id === id);
 
   const filteredPdfs = pdfs.filter(p =>
     p.title.toLowerCase().includes(pdfSearch.toLowerCase()) ||
@@ -117,8 +126,8 @@ export default function NewBinderPage() {
 
   const handleCreate = async () => {
     setSaving(true);
-    const sd = getUser(sdId)!;
-    const qap = getUser(qapId)!;
+    const sd = getUser(sdId);
+    const qap = getUser(qapId);
     const tfm = tfmId ? getUser(tfmId) : undefined;
 
     const forms: BinderForm[] = selectedUrls.map(url => {
@@ -145,10 +154,10 @@ export default function NewBinderPage() {
       status: "ongoing",
       startDate: now.slice(0, 10),
       sdId,
-      directorName: sd.name,
+      directorName: sd?.name ?? sdId,
       qapId,
-      qaName: qap.name,
-      tfmId: tfm?.id,
+      qaName: qap?.name ?? qapId,
+      tfmId: tfm?.user_id,
       tfmName: tfm?.name,
       requiredForms: forms,
       createdAt: now,
@@ -340,9 +349,9 @@ export default function NewBinderPage() {
               <InfoRow label="시험번호" value={<span className="font-black text-blue-700 text-base tracking-widest">{generatedNumber}</span>} />
               {binderType === "qa" && <InfoRow label="대상 시험" value={qaTargetStudyNumber} />}
               {binderType === "study" && <InfoRow label="시험 종류" value={STUDY_TYPE_LABELS[studyType]} />}
-              <InfoRow label="시험책임자" value={getUser(sdId)?.name ?? ""} />
-              <InfoRow label="담당 QAP" value={getUser(qapId)?.name ?? ""} />
-              {tfmId && <InfoRow label="운영책임자" value={getUser(tfmId)?.name ?? ""} />}
+              <InfoRow label="시험책임자" value={getUser(sdId)?.name ?? sdId} />
+              <InfoRow label="담당 QAP" value={getUser(qapId)?.name ?? qapId} />
+              {tfmId && <InfoRow label="운영책임자" value={getUser(tfmId)?.name ?? tfmId} />}
               <InfoRow label="기록지" value={`${selectedUrls.length}종 · 총 ${Object.values(selectedForms).reduce((a,b)=>a+b,0)}매`} />
             </div>
             <div className="bg-slate-50 rounded-2xl border border-slate-200 p-4 space-y-2">
@@ -393,7 +402,7 @@ export default function NewBinderPage() {
 
 function UserSelect({ label, users, value, onChange }: {
   label: string;
-  users: UserCredential[];
+  users: DBUser[];
   value: string;
   onChange: (id: string) => void;
 }) {
@@ -405,16 +414,16 @@ function UserSelect({ label, users, value, onChange }: {
       ) : (
         <div className="space-y-1.5">
           {users.map(u => (
-            <button key={u.id} onClick={() => onChange(u.id)}
+            <button key={u.user_id} onClick={() => onChange(u.user_id)}
               className={`w-full text-left px-3 py-2.5 rounded-xl border-2 cursor-pointer transition-all ${
-                value === u.id ? "border-blue-500 bg-blue-50" : "border-slate-200 bg-white"
+                value === u.user_id ? "border-blue-500 bg-blue-50" : "border-slate-200 bg-white"
               }`}>
               <div className="flex items-center justify-between">
                 <div>
                   <span className="font-bold text-slate-900 text-sm">{u.name}</span>
                   <span className="text-xs text-slate-400 ml-2">{u.department}</span>
                 </div>
-                {value === u.id && <span className="text-blue-600 font-bold text-sm">✓</span>}
+                {value === u.user_id && <span className="text-blue-600 font-bold text-sm">✓</span>}
               </div>
             </button>
           ))}

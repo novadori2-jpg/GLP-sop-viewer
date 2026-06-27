@@ -567,9 +567,9 @@ function PDFPageRow({
 
   // 3. 터치 처리: 1손가락=필기(스크롤 차단), 2손가락=스크롤/핀치줌(필기 차단)
   const pinchStartDist = useRef<number | null>(null);
-  const pinchStartScale = useRef<number>(1);
-  const pinchLastMid = useRef<{ x: number; y: number } | null>(null); // 2손가락 패닝용 이전 중심점
-  const isPinching = useRef<boolean>(false); // 핀치 중 필기 완전 차단용
+  const pinchLiveRatio = useRef<number>(1); // 핀치 중 CSS transform용 누적 배율
+  const pinchLastMid = useRef<{ x: number; y: number } | null>(null);
+  const isPinching = useRef<boolean>(false);
 
   useEffect(() => {
     const canvas = drawCanvasRef.current;
@@ -588,10 +588,9 @@ function PDFPageRow({
 
     const onTouchStart = (e: TouchEvent) => {
       if (e.touches.length === 1 && !readOnly && (tool === "pen" || tool === "strikethrough")) {
-        e.preventDefault(); // 1손가락 필기 중 스크롤 방지
+        e.preventDefault();
       }
       if (e.touches.length === 2) {
-        // 대기 중인 텍스트/서명/지우개 액션 취소
         if (pendingTouchAction.current) {
           clearTimeout(pendingTouchAction.current);
           pendingTouchAction.current = null;
@@ -599,60 +598,64 @@ function PDFPageRow({
         setActiveTextInput(null);
         setActiveSigInput(null);
         isPinching.current = true;
-        setDrawing(false); // 이미 그리고 있던 경우 즉시 중단
+        setDrawing(false);
         lastPos.current = null;
         pinchStartDist.current = getTouchDist(e.touches);
-        pinchStartScale.current = 1;
+        pinchLiveRatio.current = 1;
         pinchLastMid.current = getTouchMid(e.touches);
-        e.preventDefault(); // 핀치/패닝 시작 시 기본 브라우저 동작 방지
+        const sc = scrollContainerRef.current;
+        if (sc) sc.style.willChange = "transform";
+        e.preventDefault();
       }
     };
 
     const onTouchMove = (e: TouchEvent) => {
       if (e.touches.length === 1 && !readOnly && (tool === "pen" || tool === "strikethrough")) {
-        e.preventDefault(); // 1손가락 필기 중 스크롤 방지
+        e.preventDefault();
       }
       if (e.touches.length === 2 && pinchStartDist.current !== null) {
         e.preventDefault();
         const newDist = getTouchDist(e.touches);
         const mid = getTouchMid(e.touches);
-
-        // 2손가락 패닝: 가로=컨테이너, 세로=window
         const sc = scrollContainerRef.current;
+
+        // 2손가락 패닝
         if (pinchLastMid.current) {
           const dx = pinchLastMid.current.x - mid.x;
           const dy = pinchLastMid.current.y - mid.y;
-          sc?.scrollBy(dx, 0);       // 가로 스크롤은 컨테이너
-          window.scrollBy(0, dy);    // 세로 스크롤은 페이지
+          sc?.scrollBy(dx, 0);
+          window.scrollBy(0, dy);
         }
         pinchLastMid.current = mid;
 
-        // 핀치줌: 거리 변화가 충분할 때만 스케일 업데이트
-        const delta = newDist / pinchStartDist.current;
-        if (Math.abs(delta - pinchStartScale.current) > 0.02) {
-          const ratio = delta / pinchStartScale.current;
-
-          // 핀치 중심점: 가로=컨테이너 기준, 세로=페이지 기준
-          const rect = sc?.getBoundingClientRect();
-          const containerMidX = mid.x - (rect?.left ?? 0);
-          const sx = sc?.scrollLeft ?? 0;
-          const sy = window.scrollY;
-
-          onScaleChange(ratio);
-          pinchStartScale.current = delta;
-
-          // 스케일 변경 후 핀치 중심이 같은 위치에 오도록 스크롤 보정
-          requestAnimationFrame(() => {
-            sc?.scrollBy((sx + containerMidX) * (ratio - 1), 0);
-            window.scrollBy(0, (sy + mid.y) * (ratio - 1));
-          });
+        // 핀치줌: React 상태 대신 CSS transform으로 부드럽게 처리
+        const ratio = newDist / pinchStartDist.current;
+        pinchLiveRatio.current = ratio;
+        if (sc) {
+          const rect = sc.getBoundingClientRect();
+          const originX = mid.x - rect.left + sc.scrollLeft;
+          const originY = mid.y - rect.top + window.scrollY;
+          sc.style.transform = `scale(${ratio})`;
+          sc.style.transformOrigin = `${originX}px ${originY}px`;
         }
       }
     };
 
     const onTouchEnd = (e: TouchEvent) => {
       if (e.touches.length < 2) {
+        const finalRatio = pinchLiveRatio.current;
+        const sc = scrollContainerRef.current;
+        // CSS transform 제거 후 React 상태 1회 업데이트
+        if (sc) {
+          sc.style.transform = "";
+          sc.style.transformOrigin = "";
+          sc.style.willChange = "";
+        }
+        if (finalRatio !== 1) {
+          onScaleChange(finalRatio);
+        }
         pinchStartDist.current = null;
+        pinchLiveRatio.current = 1;
         pinchLastMid.current = null;
         isPinching.current = false;
       }

@@ -205,7 +205,7 @@ export default function PDFCanvasViewer({
     <div ref={containerRef} className="space-y-4 w-full">
       {/* 툴바 */}
       {!readOnly && (
-        <div className="fixed top-0 left-0 right-0 z-50 bg-slate-900 text-white px-2 py-1 flex items-center gap-1 shadow-lg" style={{ height: "44px" }}>
+        <div className="fixed bottom-0 left-0 right-0 z-50 bg-slate-900 text-white px-3 py-2 flex items-center gap-1.5 shadow-[0_-2px_12px_rgba(0,0,0,0.4)]" style={{ minHeight: "52px" }}>
           {/* 도구 버튼 — 이모지+짧은 레이블 */}
           {!hasSignature ? (
             <button onClick={() => setTool("eraser")} title="지우개"

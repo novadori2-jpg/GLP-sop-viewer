@@ -748,7 +748,7 @@ function PDFPageRow({
     // 텍스트/서명/지우개: 터치일 때 80ms 딜레이 후 실행 (핀치 여부 확인 후)
     if (e.pointerType === "touch" && (tool === "text" || tool === "signature" || tool === "eraser")) {
       const captured = { ...ratios };
-      pendingTouchAction.current = window.setTimeout(() => {
+      pendingTouchAction.current = setTimeout(() => {
         pendingTouchAction.current = null;
         if (isPinching.current) return;
         if (tool === "text") {

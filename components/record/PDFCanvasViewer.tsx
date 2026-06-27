@@ -434,6 +434,7 @@ function PDFPageRow({
   const lastPos = useRef<{ x: number; y: number } | null>(null);
   const lastDrawnBase64 = useRef<string | undefined>(drawingData);
   const imageCache = useRef<Record<string, HTMLImageElement>>({});
+  const pendingTouchAction = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 임시 취선 드래그용 실시간 드래깅선 상태
   const [tempLine, setTempLine] = useState<{ startX: number; startY: number; endX: number; endY: number } | null>(null);
@@ -632,6 +633,13 @@ function PDFPageRow({
         e.preventDefault(); // 1손가락 필기 중 스크롤 방지
       }
       if (e.touches.length === 2) {
+        // 대기 중인 텍스트/서명/지우개 액션 취소
+        if (pendingTouchAction.current) {
+          clearTimeout(pendingTouchAction.current);
+          pendingTouchAction.current = null;
+        }
+        setActiveTextInput(null);
+        setActiveSigInput(null);
         isPinching.current = true;
         setDrawing(false); // 이미 그리고 있던 경우 즉시 중단
         lastPos.current = null;
@@ -736,6 +744,23 @@ function PDFPageRow({
     e.preventDefault();
 
     const ratios = getRatios(e);
+
+    // 텍스트/서명/지우개: 터치일 때 80ms 딜레이 후 실행 (핀치 여부 확인 후)
+    if (e.pointerType === "touch" && (tool === "text" || tool === "signature" || tool === "eraser")) {
+      const captured = { ...ratios };
+      pendingTouchAction.current = window.setTimeout(() => {
+        pendingTouchAction.current = null;
+        if (isPinching.current) return;
+        if (tool === "text") {
+          setActiveTextInput({ pageNumber, x: captured.x, y: captured.y });
+        } else if (tool === "signature") {
+          setActiveSigInput({ pageNumber, x: captured.x, y: captured.y });
+        } else if (tool === "eraser") {
+          onEraseTextSig(captured.x, captured.y);
+        }
+      }, 80);
+      return;
+    }
 
     // 1) 텍스트 도구 선택 시 타이핑 인풋 팝업 배치
     if (tool === "text") {

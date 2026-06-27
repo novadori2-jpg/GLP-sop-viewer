@@ -88,34 +88,47 @@ export const DEFAULT_CREDENTIALS: UserCredential[] = [
     email: "pi_analysis@iai-glp.co.kr",
     isDefault: true,
   },
+  {
+    id: "tfm",
+    name: "박운영",
+    role: "tfm",
+    password: "tfm1234",
+    department: "경영지원팀",
+    email: "tfm@iai-glp.co.kr",
+    isDefault: true,
+  },
 ];
 
 const USERS_STORAGE_KEY = "glp-users";
 const USERS_VERSION_KEY = "glp-users-version";
-const CURRENT_VERSION = "2"; // admin 역할 추가 시 버전 올림
+const CURRENT_VERSION = "3"; // tfm 기본 계정 추가
 
 // localStorage에서 모든 사용자 불러오기 (없으면 기본값으로 초기화)
 export function getAllUsers(): UserCredential[] {
   if (typeof window === "undefined") return DEFAULT_CREDENTIALS;
-  // 버전이 다르면 기본값으로 재초기화 (스키마 변경 시 데이터 마이그레이션)
-  const savedVersion = localStorage.getItem(USERS_VERSION_KEY);
-  if (savedVersion !== CURRENT_VERSION) {
-    localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(DEFAULT_CREDENTIALS));
-    localStorage.setItem(USERS_VERSION_KEY, CURRENT_VERSION);
-    return DEFAULT_CREDENTIALS;
-  }
 
+  const savedVersion = localStorage.getItem(USERS_VERSION_KEY);
   const stored = localStorage.getItem(USERS_STORAGE_KEY);
+  let users: UserCredential[] = DEFAULT_CREDENTIALS;
+
   if (stored) {
     try {
       const parsed = JSON.parse(stored);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-    } catch {
-      // fall through to reinitialize
-    }
+      if (Array.isArray(parsed) && parsed.length > 0) users = parsed;
+    } catch { /* fall through */ }
   }
-  localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(DEFAULT_CREDENTIALS));
-  return DEFAULT_CREDENTIALS;
+
+  // 버전이 다르면 누락된 기본 계정만 병합 (커스텀 계정 유지)
+  if (savedVersion !== CURRENT_VERSION) {
+    const existingIds = new Set(users.map(u => u.id));
+    for (const def of DEFAULT_CREDENTIALS) {
+      if (!existingIds.has(def.id)) users = [...users, def];
+    }
+    localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+    localStorage.setItem(USERS_VERSION_KEY, CURRENT_VERSION);
+  }
+
+  return users;
 }
 
 export function saveAllUsers(users: UserCredential[]): void {

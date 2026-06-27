@@ -33,9 +33,9 @@ export default function NewBinderPage() {
   const [qapId, setQapId] = useState("");
   const [tfmId, setTfmId] = useState("");
 
-  // 서식 선택
+  // 서식 선택: url -> 수량
   const [pdfs, setPdfs] = useState<PdfFile[]>([]);
-  const [selectedForms, setSelectedForms] = useState<string[]>([]);
+  const [selectedForms, setSelectedForms] = useState<Record<string, number>>({});
   const [pdfSearch, setPdfSearch] = useState("");
 
   const [users, setUsers] = useState<UserCredential[]>([]);
@@ -81,10 +81,22 @@ export default function NewBinderPage() {
   );
 
   const toggleForm = (url: string) => {
-    setSelectedForms(prev =>
-      prev.includes(url) ? prev.filter(u => u !== url) : [...prev, url]
-    );
+    setSelectedForms(prev => {
+      if (url in prev) {
+        const next = { ...prev };
+        delete next[url];
+        return next;
+      }
+      return { ...prev, [url]: 1 };
+    });
   };
+
+  const setFormQty = (url: string, qty: number) => {
+    if (qty < 1) return;
+    setSelectedForms(prev => ({ ...prev, [url]: qty }));
+  };
+
+  const selectedUrls = Object.keys(selectedForms);
 
   const canGoNext = () => {
     if (step === "type") return true;
@@ -93,7 +105,7 @@ export default function NewBinderPage() {
       if (binderType === "qa" && (!tfmId || !qaTargetStudyNumber)) return false;
       return true;
     }
-    if (step === "forms") return selectedForms.length > 0;
+    if (step === "forms") return selectedUrls.length > 0;
     return true;
   };
 
@@ -109,13 +121,14 @@ export default function NewBinderPage() {
     const qap = getUser(qapId)!;
     const tfm = tfmId ? getUser(tfmId) : undefined;
 
-    const forms: BinderForm[] = selectedForms.map(url => {
+    const forms: BinderForm[] = selectedUrls.map(url => {
       const pdf = pdfs.find(p => p.url === url)!;
       return {
         sopId: "",
         sopNumber: pdf.category,
         formTitle: pdf.title.replace(/^📋 |^📖 /, ""),
         pdfPath: url,
+        quantity: selectedForms[url] ?? 1,
       };
     });
 
@@ -274,28 +287,47 @@ export default function NewBinderPage() {
                 className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm bg-white outline-none focus:border-blue-400"
               />
             </div>
-            <p className="text-xs text-slate-400">{selectedForms.length}개 선택됨</p>
+            <p className="text-xs text-slate-400">{selectedUrls.length}종 선택 · 총 {Object.values(selectedForms).reduce((a,b)=>a+b,0)}매</p>
             <div className="space-y-1.5 max-h-[60vh] overflow-y-auto">
-              {filteredPdfs.map(pdf => (
-                <button key={pdf.url} onClick={() => toggleForm(pdf.url)}
-                  className={`w-full text-left px-4 py-3 rounded-xl border transition-all cursor-pointer ${
-                    selectedForms.includes(pdf.url)
-                      ? "border-blue-500 bg-blue-50"
-                      : "border-slate-200 bg-white hover:border-slate-300"
-                  }`}>
-                  <div className="flex items-center gap-3">
-                    <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${
-                      selectedForms.includes(pdf.url) ? "border-blue-500 bg-blue-500" : "border-slate-300"
+              {filteredPdfs.map(pdf => {
+                const isSelected = pdf.url in selectedForms;
+                const qty = selectedForms[pdf.url] ?? 0;
+                return (
+                  <div key={pdf.url}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-all ${
+                      isSelected ? "border-blue-500 bg-blue-50" : "border-slate-200 bg-white"
                     }`}>
-                      {selectedForms.includes(pdf.url) && <span className="text-white text-xs font-bold">✓</span>}
-                    </div>
-                    <div className="min-w-0">
+                    {/* 체크박스 영역 */}
+                    <button onClick={() => toggleForm(pdf.url)} className="cursor-pointer flex-shrink-0">
+                      <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
+                        isSelected ? "border-blue-500 bg-blue-500" : "border-slate-300"
+                      }`}>
+                        {isSelected && <span className="text-white text-xs font-bold">✓</span>}
+                      </div>
+                    </button>
+                    {/* 제목 */}
+                    <div className="min-w-0 flex-1" onClick={() => toggleForm(pdf.url)}>
                       <p className="text-sm font-semibold text-slate-800 truncate">{pdf.title}</p>
                       <p className="text-[10px] text-slate-400 font-mono">{pdf.filename}</p>
                     </div>
+                    {/* 수량 조절 */}
+                    {isSelected && (
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <button
+                          onClick={() => qty <= 1 ? toggleForm(pdf.url) : setFormQty(pdf.url, qty - 1)}
+                          className="w-7 h-7 rounded-lg bg-slate-200 text-slate-700 font-bold text-sm flex items-center justify-center cursor-pointer"
+                        >−</button>
+                        <span className="w-6 text-center text-sm font-bold text-blue-700">{qty}</span>
+                        <button
+                          onClick={() => setFormQty(pdf.url, qty + 1)}
+                          className="w-7 h-7 rounded-lg bg-blue-500 text-white font-bold text-sm flex items-center justify-center cursor-pointer"
+                        >+</button>
+                        <span className="text-[10px] text-slate-400 ml-0.5">매</span>
+                      </div>
+                    )}
                   </div>
-                </button>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
@@ -311,13 +343,19 @@ export default function NewBinderPage() {
               <InfoRow label="시험책임자" value={getUser(sdId)?.name ?? ""} />
               <InfoRow label="담당 QAP" value={getUser(qapId)?.name ?? ""} />
               {tfmId && <InfoRow label="운영책임자" value={getUser(tfmId)?.name ?? ""} />}
-              <InfoRow label="기록지 수" value={`${selectedForms.length}종`} />
+              <InfoRow label="기록지" value={`${selectedUrls.length}종 · 총 ${Object.values(selectedForms).reduce((a,b)=>a+b,0)}매`} />
             </div>
             <div className="bg-slate-50 rounded-2xl border border-slate-200 p-4 space-y-2">
               <p className="text-xs font-bold text-slate-500">선택된 기록지</p>
-              {selectedForms.map(url => {
+              {selectedUrls.map(url => {
                 const pdf = pdfs.find(p => p.url === url);
-                return <p key={url} className="text-xs text-slate-700">• {pdf?.title}</p>;
+                const qty = selectedForms[url];
+                return (
+                  <div key={url} className="flex items-center justify-between text-xs text-slate-700">
+                    <span>• {pdf?.title}</span>
+                    {qty > 1 && <span className="font-bold text-blue-600">{qty}매</span>}
+                  </div>
+                );
               })}
             </div>
           </div>

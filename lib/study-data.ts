@@ -10,6 +10,7 @@ export interface BinderForm {
   sopNumber: string;
   formTitle: string;
   pdfPath: string;
+  quantity: number; // 해당 기록지 매수 (기본 1)
 }
 
 export interface BinderSignatureRecord {
@@ -71,9 +72,9 @@ export const MOCK_STUDIES: StudyInfo[] = [
     qapId: "qap",
     qaName: "김철수",
     requiredForms: [
-      { sopId: "IAI-ECT-001-05", sopNumber: "IAI-ECT-001", formTitle: "어류순화기록서 (ECT-001-F01-02)", pdfPath: "/pdfs/ECT-001-F01-02_어류순화기록서.pdf" },
-      { sopId: "IAI-ECT-001-05", sopNumber: "IAI-ECT-001", formTitle: "어체측정기록서 (ECT-001-F02-02)", pdfPath: "/pdfs/ECT-001-F02-02_어체측정기록서.pdf" },
-      { sopId: "IAI-ECT-001-05", sopNumber: "IAI-ECT-001", formTitle: "어류 급성독성시험기록서 (ECT-001-F03-02)", pdfPath: "/pdfs/ECT-001-F03-02_어류_급성독성시험기록서.pdf" },
+      { sopId: "IAI-ECT-001-05", sopNumber: "IAI-ECT-001", formTitle: "어류순화기록서 (ECT-001-F01-02)", pdfPath: "/pdfs/ECT-001-F01-02_어류순화기록서.pdf", quantity: 1 },
+      { sopId: "IAI-ECT-001-05", sopNumber: "IAI-ECT-001", formTitle: "어체측정기록서 (ECT-001-F02-02)", pdfPath: "/pdfs/ECT-001-F02-02_어체측정기록서.pdf", quantity: 1 },
+      { sopId: "IAI-ECT-001-05", sopNumber: "IAI-ECT-001", formTitle: "어류 급성독성시험기록서 (ECT-001-F03-02)", pdfPath: "/pdfs/ECT-001-F03-02_어류_급성독성시험기록서.pdf", quantity: 1 },
     ],
     createdAt: "2026-06-01T00:00:00.000Z",
   },
@@ -91,8 +92,8 @@ export const MOCK_STUDIES: StudyInfo[] = [
     qapId: "qap",
     qaName: "김철수",
     requiredForms: [
-      { sopId: "IAI-ECT-002-03", sopNumber: "IAI-ECT-002", formTitle: "물벼룩 급성독성시험기록서 (ECT-002-F01-02)", pdfPath: "/pdfs/ECT-002-F01-02_물벼룩_급성독성시험기록서.pdf" },
-      { sopId: "IAI-ECT-002-03", sopNumber: "IAI-ECT-002", formTitle: "물벼룩시험 환경측정기록서 (ECT-002-F02-02)", pdfPath: "/pdfs/ECT-002-F02-02_물벼룩시험_환경측정기록서.pdf" },
+      { sopId: "IAI-ECT-002-03", sopNumber: "IAI-ECT-002", formTitle: "물벼룩 급성독성시험기록서 (ECT-002-F01-02)", pdfPath: "/pdfs/ECT-002-F01-02_물벼룩_급성독성시험기록서.pdf", quantity: 1 },
+      { sopId: "IAI-ECT-002-03", sopNumber: "IAI-ECT-002", formTitle: "물벼룩시험 환경측정기록서 (ECT-002-F02-02)", pdfPath: "/pdfs/ECT-002-F02-02_물벼룩시험_환경측정기록서.pdf", quantity: 1 },
     ],
     createdAt: "2026-05-15T00:00:00.000Z",
   },

@@ -316,7 +316,7 @@ export default function PDFCanvasViewer({
       {/* PDF 페이지 리스트 — 가로/세로 스크롤 컨테이너 */}
       <div
         ref={scrollContainerRef}
-        style={{ overflow: "auto", WebkitOverflowScrolling: "touch" as any }}
+        style={{ overflowX: "auto", overflowY: "visible" as any, WebkitOverflowScrolling: "touch" as any }}
         className="w-full"
       >
         <div className="space-y-4" style={{ width: "max-content", minWidth: "100%" }}>
@@ -659,13 +659,13 @@ function PDFPageRow({
         const newDist = getTouchDist(e.touches);
         const mid = getTouchMid(e.touches);
 
-        // 2손가락 패닝: 중심점 이동량만큼 스크롤 컨테이너 스크롤
+        // 2손가락 패닝: 가로=컨테이너, 세로=window
         const sc = scrollContainerRef.current;
-        if (pinchLastMid.current && sc) {
-          sc.scrollBy(
-            pinchLastMid.current.x - mid.x,
-            pinchLastMid.current.y - mid.y,
-          );
+        if (pinchLastMid.current) {
+          const dx = pinchLastMid.current.x - mid.x;
+          const dy = pinchLastMid.current.y - mid.y;
+          sc?.scrollBy(dx, 0);       // 가로 스크롤은 컨테이너
+          window.scrollBy(0, dy);    // 세로 스크롤은 페이지
         }
         pinchLastMid.current = mid;
 
@@ -674,22 +674,19 @@ function PDFPageRow({
         if (Math.abs(delta - pinchStartScale.current) > 0.02) {
           const ratio = delta / pinchStartScale.current;
 
-          // 핀치 중심점을 스크롤 컨테이너 기준 좌표로 변환
+          // 핀치 중심점: 가로=컨테이너 기준, 세로=페이지 기준
           const rect = sc?.getBoundingClientRect();
           const containerMidX = mid.x - (rect?.left ?? 0);
-          const containerMidY = mid.y - (rect?.top ?? 0);
           const sx = sc?.scrollLeft ?? 0;
-          const sy = sc?.scrollTop ?? 0;
+          const sy = window.scrollY;
 
           onScaleChange(ratio);
           pinchStartScale.current = delta;
 
           // 스케일 변경 후 핀치 중심이 같은 위치에 오도록 스크롤 보정
           requestAnimationFrame(() => {
-            sc?.scrollBy(
-              (sx + containerMidX) * (ratio - 1),
-              (sy + containerMidY) * (ratio - 1)
-            );
+            sc?.scrollBy((sx + containerMidX) * (ratio - 1), 0);
+            window.scrollBy(0, (sy + mid.y) * (ratio - 1));
           });
         }
       }

@@ -1,13 +1,11 @@
 "use client";
 import { useState, useEffect, Suspense } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { v4 as uuidv4 } from "uuid";
 import type { RecordEntry, EditHistoryItem, TypedTextItem, CanvasSignatureItem, StrikeThroughItem } from "@/lib/record-data";
 import { getCurrentUser } from "@/lib/record-data";
 import type { CurrentUser } from "@/lib/record-data";
 import { canSignAsAuthor, canSignAsReviewer } from "@/lib/permissions";
 import { getRecordEntry, saveRecordEntry } from "@/lib/audit-logger";
-import { EditHistoryModal } from "@/components/record/EditHistoryModal";
 import dynamic from "next/dynamic";
 
 // SSR 방지를 위해 PDFCanvasViewer 컴포넌트를 동적 임포트
@@ -24,7 +22,6 @@ function EntryContent() {
 
   // 서명 후 잠금 해제 상태 관리
   const [isEditUnlocked, setIsEditUnlocked] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
 
   useEffect(() => {
     const u = getCurrentUser();
@@ -128,37 +125,7 @@ function EntryContent() {
   };
 
   const handleAttemptEdit = () => {
-    setShowEditModal(true);
-  };
-
-  const confirmUnlockEdit = (newValue: string, reason: string, signatureImage?: string) => {
-    if (!entry) return;
-
-    const histItem: EditHistoryItem = {
-      id: uuidv4(),
-      sectionId: "drawings",
-      fieldId: "canvas",
-      fieldLabel: "기록지 본문 수정",
-      oldValue: "작성 완료된 데이터",
-      newValue: "필기 및 데이터 수정 개시",
-      reason: reason,
-      editedBy: user?.id ?? "",
-      editedByName: user?.name ?? "",
-      editedAt: new Date().toISOString(),
-      signatureImage: signatureImage,
-    };
-
-    setEntry(prev => {
-      if (!prev) return null;
-      return {
-        ...prev,
-        editHistory: [...prev.editHistory, histItem],
-        updatedAt: new Date().toISOString(),
-      };
-    });
-
     setIsEditUnlocked(true);
-    setShowEditModal(false);
   };
 
   const handleSave = async () => {
@@ -291,18 +258,6 @@ function EntryContent() {
               })}
             </div>
           </div>
-        )}
-
-        {/* 3. 수정 사유 모달창 */}
-        {showEditModal && (
-          <EditHistoryModal
-            fieldLabel="필기 일지 수정"
-            oldValue="기록 완료된 데이터"
-            onConfirm={confirmUnlockEdit}
-            onCancel={() => setShowEditModal(false)}
-            simplified
-            userName={user?.name ?? ""}
-          />
         )}
 
         <div className="pb-8" />

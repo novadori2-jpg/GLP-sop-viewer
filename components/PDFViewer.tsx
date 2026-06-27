@@ -23,7 +23,7 @@ export default function PDFViewer({ pdfUrl }: Props) {
 
       try {
         const pdfjsLib = await import("pdfjs-dist");
-        pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+        pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.js";
 
         const pdf = await pdfjsLib.getDocument({ url: pdfUrl }).promise;
         if (cancelled) return;

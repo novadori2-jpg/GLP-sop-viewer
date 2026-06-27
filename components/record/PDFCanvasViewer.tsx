@@ -82,7 +82,7 @@ export default function PDFCanvasViewer({
       };
 
       const pdfjsLib = await import("pdfjs-dist");
-      pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+      pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.js";
       await loadDocument(pdfjsLib);
     };
 

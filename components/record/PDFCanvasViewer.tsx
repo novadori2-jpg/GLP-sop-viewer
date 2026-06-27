@@ -76,7 +76,9 @@ export default function PDFCanvasViewer({
           setNumPages(pdf.numPages);
           setLoading(false);
         } catch (err) {
-          console.error("PDF 로딩 실패:", err);
+          const msg = err instanceof Error ? err.message : String(err);
+          console.error("PDF 로딩 실패:", msg);
+          alert("PDF 오류: " + msg);
           setLoading(false);
         }
       };

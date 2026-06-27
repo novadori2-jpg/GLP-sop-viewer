@@ -56,7 +56,8 @@ export default function PDFViewer({ pdfUrl }: Props) {
         setLoading(false);
       } catch (e) {
         if (!cancelled) {
-          setError("PDF를 불러오지 못했습니다.");
+          const msg = e instanceof Error ? e.message : String(e);
+          setError("PDF를 불러오지 못했습니다. [" + msg + "]");
           setLoading(false);
         }
       }

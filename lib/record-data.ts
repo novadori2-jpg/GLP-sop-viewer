@@ -106,8 +106,9 @@ export interface RecordEntry {
   employeeId?: string;    // 추가: 사번 매핑 (운영 - 인력/교육)
   scheduleYearMonth?: string; // 추가: 총괄표용 연월 매핑 (운영 - 일정)
   drawings: Record<number, string>; // 페이지 번호(1-based) -> 필기 base64 PNG 데이터
-  authorSignature?: SignatureRecord; // 하단 구버전 호환용 (혹은 미지정)
-  reviewerSignature?: SignatureRecord; // 하단 구버전 호환용 (혹은 미지정)
+  authorSignature?: SignatureRecord;
+  reviewerSignature?: SignatureRecord;
+  sdConfirmSignature?: SignatureRecord; // 시험책임자 당일 확인 서명 (기록지별)
   editHistory: EditHistoryItem[];
   createdAt: string;
   updatedAt: string;

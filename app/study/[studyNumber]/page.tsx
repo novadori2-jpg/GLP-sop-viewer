@@ -108,11 +108,12 @@ function StudyBinderContent() {
     </div>
   );
 
-  const statusLabel = {
+  const statusLabel = ({
     ongoing: { text: "✏️ 시험 진행 중 (기록 작성)", cls: "bg-blue-50 text-blue-800 border-blue-200" },
+    sd_binder_signed: { text: "✅ SD 바인더 서명 완료 — QA 검토 대기", cls: "bg-indigo-50 text-indigo-800 border-indigo-200" },
     submitted_for_qa: { text: "🔍 QA 검토 대기 (바인더 제출 완료)", cls: "bg-amber-50 text-amber-800 border-amber-200" },
     complete: { text: "🛡️ QA 검토 및 최종 봉인 완료", cls: "bg-green-50 text-green-800 border-green-200" },
-  }[study.status];
+  } as Record<string, { text: string; cls: string }>)[study.status] ?? { text: study.status, cls: "bg-slate-50 text-slate-700 border-slate-200" };
 
   return (
     <div className="min-h-screen bg-slate-50">

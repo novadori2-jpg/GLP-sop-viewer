@@ -1,24 +1,50 @@
 import { getAllRecordEntries } from "./audit-logger";
 import type { RecordEntry } from "./record-data";
 
+export type StudyType = "F" | "D" | "A"; // 어류급성 | 물벼룩 | 조류
+export type BinderType = "study" | "qa";
+export type StudyStatus = "ongoing" | "sd_binder_signed" | "submitted_for_qa" | "complete";
+
+export interface BinderForm {
+  sopId: string;
+  sopNumber: string;
+  formTitle: string;
+  pdfPath: string;
+}
+
+export interface BinderSignatureRecord {
+  userId: string;
+  userName: string;
+  signatureImage: string;
+  signedAt: string;
+}
+
 export interface StudyInfo {
-  studyNumber: string;
+  studyNumber: string;        // e.g. "F26001" or "QA F26001"
+  binderType: BinderType;     // "study" | "qa"
+  studyType?: StudyType;      // 시험 바인더만: "F" | "D" | "A"
+  qaTargetStudyNumber?: string; // QA 바인더만: 대상 시험번호
   title: string;
   testSubstance: string;
-  status: "ongoing" | "submitted_for_qa" | "complete";
+  status: StudyStatus;
   startDate: string;
   endDate?: string;
-  directorName: string;
-  qaName: string;
-  requiredForms: {
-    sopId: string;
-    sopNumber: string;
-    formTitle: string;
-    pdfPath: string;
-  }[];
-  qaStatementSignature?: string; // QA 최종 봉인 서명 이미지
-  qaStatementDate?: string;      // QA 최종 봉인 일자
-  qaStatementComments?: string;  // QA 최종 검토 코멘트
+  // 담당자
+  sdId: string;
+  directorName: string;       // SD 이름
+  qapId: string;
+  qaName: string;             // QAP 이름
+  tfmId?: string;             // QA 바인더용: 운영책임자 ID
+  tfmName?: string;           // QA 바인더용: 운영책임자 이름
+  // 서식 목록
+  requiredForms: BinderForm[];
+  // 서명
+  sdBinderSignature?: BinderSignatureRecord;  // SD 바인더 최종 서명
+  tfmSignature?: BinderSignatureRecord;       // 운영책임자 서명 (QA 바인더)
+  qaStatementSignature?: string;
+  qaStatementDate?: string;
+  qaStatementComments?: string;
+  createdAt: string;
 }
 
 export interface EmployeeInfo {
@@ -33,63 +59,42 @@ export interface EmployeeInfo {
 
 export const MOCK_STUDIES: StudyInfo[] = [
   {
-    studyNumber: "ECT-2026-001",
-    title: "제브라피쉬를 이용한 시험물질 IAI-2026A의 어류 급성독성시험",
+    studyNumber: "F26001",
+    binderType: "study",
+    studyType: "F",
+    title: "어류 급성독성시험 F26001",
     testSubstance: "IAI-2026A",
     status: "ongoing",
     startDate: "2026-06-01",
-    directorName: "연구원 (작성자)",
-    qaName: "QAU검토자 (확인자)",
+    sdId: "sd",
+    directorName: "홍길동",
+    qapId: "qap",
+    qaName: "김철수",
     requiredForms: [
-      {
-        sopId: "IAI-ECT-001-05",
-        sopNumber: "IAI-ECT-001",
-        formTitle: "어류순화기록서 (ECT-001-F01-02)",
-        pdfPath: "/pdfs/ECT-001-F01-02_어류순화기록서.pdf",
-      },
-      {
-        sopId: "IAI-ECT-001-05",
-        sopNumber: "IAI-ECT-001",
-        formTitle: "어체측정기록서 (ECT-001-F02-02)",
-        pdfPath: "/pdfs/ECT-001-F02-02_어체측정기록서.pdf",
-      },
-      {
-        sopId: "IAI-ECT-001-05",
-        sopNumber: "IAI-ECT-001",
-        formTitle: "어류 급성독성시험기록서 (ECT-001-F03-02)",
-        pdfPath: "/pdfs/ECT-001-F03-02_어류_급성독성시험기록서.pdf",
-      },
-      {
-        sopId: "IAI-ECT-001-05",
-        sopNumber: "IAI-ECT-001",
-        formTitle: "어류시험 환경측정기록서-지수식 (ECT-001-F04-01)",
-        pdfPath: "/pdfs/ECT-001-F04-01_어류시험_환경측정기록서(지수식).pdf",
-      },
+      { sopId: "IAI-ECT-001-05", sopNumber: "IAI-ECT-001", formTitle: "어류순화기록서 (ECT-001-F01-02)", pdfPath: "/pdfs/ECT-001-F01-02_어류순화기록서.pdf" },
+      { sopId: "IAI-ECT-001-05", sopNumber: "IAI-ECT-001", formTitle: "어체측정기록서 (ECT-001-F02-02)", pdfPath: "/pdfs/ECT-001-F02-02_어체측정기록서.pdf" },
+      { sopId: "IAI-ECT-001-05", sopNumber: "IAI-ECT-001", formTitle: "어류 급성독성시험기록서 (ECT-001-F03-02)", pdfPath: "/pdfs/ECT-001-F03-02_어류_급성독성시험기록서.pdf" },
     ],
+    createdAt: "2026-06-01T00:00:00.000Z",
   },
   {
-    studyNumber: "ECT-2026-002",
-    title: "물벼룩을 이용한 시험물질 IAI-2026B의 급성독성시험",
+    studyNumber: "D26001",
+    binderType: "study",
+    studyType: "D",
+    title: "물벼룩 급성독성시험 D26001",
     testSubstance: "IAI-2026B",
     status: "submitted_for_qa",
     startDate: "2026-05-15",
     endDate: "2026-06-25",
-    directorName: "연구원 (작성자)",
-    qaName: "QAU검토자 (확인자)",
+    sdId: "sd",
+    directorName: "홍길동",
+    qapId: "qap",
+    qaName: "김철수",
     requiredForms: [
-      {
-        sopId: "IAI-ECT-002-03",
-        sopNumber: "IAI-ECT-002",
-        formTitle: "물벼룩 급성독성시험기록서 (ECT-002-F01-02)",
-        pdfPath: "/pdfs/ECT-002-F01-02_물벼룩_급성독성시험기록서.pdf",
-      },
-      {
-        sopId: "IAI-ECT-002-03",
-        sopNumber: "IAI-ECT-002",
-        formTitle: "물벼룩시험 환경측정기록서 (ECT-002-F02-02)",
-        pdfPath: "/pdfs/ECT-002-F02-02_물벼룩시험_환경측정기록서.pdf",
-      },
+      { sopId: "IAI-ECT-002-03", sopNumber: "IAI-ECT-002", formTitle: "물벼룩 급성독성시험기록서 (ECT-002-F01-02)", pdfPath: "/pdfs/ECT-002-F01-02_물벼룩_급성독성시험기록서.pdf" },
+      { sopId: "IAI-ECT-002-03", sopNumber: "IAI-ECT-002", formTitle: "물벼룩시험 환경측정기록서 (ECT-002-F02-02)", pdfPath: "/pdfs/ECT-002-F02-02_물벼룩시험_환경측정기록서.pdf" },
     ],
+    createdAt: "2026-05-15T00:00:00.000Z",
   },
 ];
 
@@ -114,15 +119,58 @@ export const MOCK_EMPLOYEES: EmployeeInfo[] = [
   },
 ];
 
+// ─── 시험번호 자동 생성 ─────────────────────────────────────────────────────
+export const STUDY_TYPE_LABELS: Record<StudyType, string> = {
+  F: "어류 급성독성시험 (F)",
+  D: "물벼룩 급성독성시험 (D)",
+  A: "조류 성장저해시험 (A)",
+};
+
+export function generateStudyNumber(type: StudyType, isQA: boolean = false): string {
+  const year = new Date().getFullYear().toString().slice(2); // "26"
+  const prefix = type + year; // e.g. "F26"
+  const qaPrefix = "QA " + prefix;
+  const targetPrefix = isQA ? qaPrefix : prefix;
+
+  const all = getStudiesList();
+  let maxSerial = 0;
+  for (const s of all) {
+    if (s.studyNumber.startsWith(targetPrefix)) {
+      const serial = parseInt(s.studyNumber.slice(targetPrefix.length), 10);
+      if (!isNaN(serial) && serial > maxSerial) maxSerial = serial;
+    }
+  }
+  return targetPrefix + String(maxSerial + 1).padStart(3, "0");
+}
+
 // 이력 로컬스토리지 보존용 키
 const STORAGE_KEY_STUDIES = "glp-studies-list";
 
 export function getStudiesList(): StudyInfo[] {
   if (typeof window === "undefined") return MOCK_STUDIES;
   const stored = localStorage.getItem(STORAGE_KEY_STUDIES);
-  if (stored) return JSON.parse(stored);
+  if (stored) {
+    try {
+      const parsed: StudyInfo[] = JSON.parse(stored);
+      // 구버전 데이터(binderType 없음) 마이그레이션
+      const migrated = parsed.map(s => ({
+        ...s,
+        binderType: s.binderType ?? "study",
+        sdId: s.sdId ?? "sd",
+        qapId: s.qapId ?? "qap",
+        createdAt: s.createdAt ?? s.startDate + "T00:00:00.000Z",
+      } as StudyInfo));
+      return migrated;
+    } catch { /* fall through */ }
+  }
   localStorage.setItem(STORAGE_KEY_STUDIES, JSON.stringify(MOCK_STUDIES));
   return MOCK_STUDIES;
+}
+
+export function addStudy(study: StudyInfo): void {
+  const list = getStudiesList();
+  list.unshift(study);
+  saveStudiesList(list);
 }
 
 export function saveStudiesList(studies: StudyInfo[]) {

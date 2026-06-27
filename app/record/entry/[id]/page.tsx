@@ -5,6 +5,7 @@ import type { RecordEntry, EditHistoryItem, TypedTextItem, CanvasSignatureItem, 
 import { getCurrentUser } from "@/lib/record-data";
 import type { CurrentUser } from "@/lib/record-data";
 import { canSignAsAuthor, canSignAsReviewer } from "@/lib/permissions";
+import SignatureModal from "@/components/record/SignatureModal";
 import { getRecordEntry, saveRecordEntry } from "@/lib/audit-logger";
 import dynamic from "next/dynamic";
 
@@ -20,6 +21,7 @@ function EntryContent() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [showSdSigModal, setShowSdSigModal] = useState(false);
 
   // 서명 후 잠금 해제 상태 관리
   const [isEditUnlocked, setIsEditUnlocked] = useState(false);
@@ -228,7 +230,55 @@ function EntryContent() {
           />
         </div>
 
-        {/* 2. 수정 이력 리스트 */}
+        {/* 2. SD 당일 확인 서명 */}
+        <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-3">
+          <h2 className="text-sm font-bold text-slate-700">🖊 시험책임자(SD) 당일 확인 서명</h2>
+          {entry.sdConfirmSignature ? (
+            <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-xl px-4 py-3">
+              <div>
+                <p className="text-xs font-bold text-green-800">{entry.sdConfirmSignature.userName} 확인 완료</p>
+                <p className="text-[10px] text-green-600">{new Date(entry.sdConfirmSignature.signedAt).toLocaleString("ko-KR")}</p>
+              </div>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={entry.sdConfirmSignature.signatureImage} alt="SD서명" className="h-10 object-contain bg-white border border-green-200 rounded px-2" />
+            </div>
+          ) : (
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-slate-400">SD 확인 서명 전</p>
+              {user?.role === "sd" && (
+                <button
+                  onClick={() => setShowSdSigModal(true)}
+                  className="px-4 py-2 bg-orange-600 text-white rounded-xl text-xs font-bold cursor-pointer"
+                >
+                  ✍ SD 당일 확인 서명
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* SD 서명 모달 */}
+        {showSdSigModal && user && (
+          <SignatureModal
+            isOpen={showSdSigModal}
+            userName={user.name}
+            userRole={user.role}
+            onConfirm={(sigImg) => {
+              const sdSig = {
+                userId: user.id,
+                userName: user.name,
+                signatureImage: sigImg,
+                signedAt: new Date().toISOString(),
+                deviceInfo: navigator.userAgent.slice(0, 100),
+              };
+              setEntry(prev => prev ? { ...prev, sdConfirmSignature: sdSig, updatedAt: new Date().toISOString() } : null);
+              setShowSdSigModal(false);
+            }}
+            onCancel={() => setShowSdSigModal(false)}
+          />
+        )}
+
+        {/* 3. 수정 이력 리스트 */}
         {entry.editHistory.length > 0 && (
           <div className="bg-white rounded-2xl border border-amber-200 p-4">
             <h2 className="text-sm font-bold text-amber-700 mb-2">📋 수정 이력 ({entry.editHistory.length}건)</h2>

@@ -241,14 +241,21 @@ function SOPListContent() {
         ) : (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-base font-bold text-slate-800">🧪 활성 GLP 시험 및 QA 바인더 목록</h2>
+              <h2 className="text-base font-bold text-slate-800">🧪 GLP 바인더 목록</h2>
               <span className="text-xs bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full font-medium">
                 총 {getStudiesList().length}건
               </span>
             </div>
             <Link
+              href="/binder/new"
+              className="flex items-center gap-3 px-4 py-3.5 bg-blue-600 rounded-xl text-sm font-bold text-white shadow-sm"
+            >
+              <span className="text-lg">+</span>
+              <span>새 바인더 만들기</span>
+            </Link>
+            <Link
               href="/records"
-              className="flex items-center gap-2 px-4 py-3 bg-slate-100 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-200 transition-colors"
+              className="flex items-center gap-2 px-4 py-3 bg-slate-100 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700"
             >
               <span>📋</span>
               <span>시험번호별 기록지 전체 보기</span>
@@ -263,24 +270,30 @@ function SOPListContent() {
                   href={`/study/${study.studyNumber}`}
                   className="block p-5 bg-white border border-slate-200 rounded-2xl hover:border-blue-400 hover:bg-blue-50/10 transition-all shadow-sm"
                 >
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-mono bg-blue-50 text-blue-800 border border-blue-200 font-bold px-2 py-0.5 rounded">
-                      {study.studyNumber}
-                    </span>
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold flex-shrink-0 ${
+                        study.binderType === "qa" ? "bg-indigo-100 text-indigo-700" : "bg-blue-50 text-blue-700 border border-blue-200"
+                      }`}>
+                        {study.binderType === "qa" ? "QA" : "시험"}
+                      </span>
+                      <span className="text-xs font-mono font-bold text-slate-800 truncate">{study.studyNumber}</span>
+                    </div>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold flex-shrink-0 ${
                       study.status === "complete" ? "bg-green-100 text-green-700" :
                       study.status === "submitted_for_qa" ? "bg-amber-100 text-amber-700" :
-                      "bg-blue-100 text-blue-700"
+                      study.status === "sd_binder_signed" ? "bg-blue-100 text-blue-700" :
+                      "bg-slate-100 text-slate-600"
                     }`}>
-                      {study.status === "complete" ? "봉인 완료" :
-                       study.status === "submitted_for_qa" ? "QA 검토 대기" : "시험 진행 중"}
+                      {study.status === "complete" ? "봉인완료" :
+                       study.status === "submitted_for_qa" ? "QA검토대기" :
+                       study.status === "sd_binder_signed" ? "SD서명완료" : "진행중"}
                     </span>
                   </div>
-                  <h3 className="text-sm font-bold text-slate-800 mt-3 leading-snug">{study.title}</h3>
-                  <p className="text-xs text-slate-400 mt-1">시험물질: {study.testSubstance}</p>
-                  <div className="flex justify-between items-center text-[10px] text-slate-400 mt-4 border-t border-slate-100 pt-2.5">
-                    <span>시험책임자: {study.directorName}</span>
-                    <span>개시일: {study.startDate}</span>
+                  <h3 className="text-sm font-bold text-slate-800 mt-2 leading-snug">{study.title}</h3>
+                  <div className="flex justify-between items-center text-[10px] text-slate-400 mt-3 border-t border-slate-100 pt-2">
+                    <span>SD: {study.directorName}</span>
+                    <span>{study.startDate}</span>
                   </div>
                 </Link>
               ))}

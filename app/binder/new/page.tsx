@@ -72,13 +72,9 @@ export default function NewBinderPage() {
       if (Array.isArray(data)) setUsers(data);
     });
 
-    // QAP: 자신이 담당 QAP로 지정된 시험바인더만, SD: 모든 시험바인더
+    // 시험바인더 전체 표시 (QAP도 모든 시험 선택 가능)
     const allStudies = getStudiesList().filter(s => s.binderType === "study");
-    if (u.role === "qap") {
-      setAvailableStudies(allStudies.filter(s => s.qapId === u.id));
-    } else {
-      setAvailableStudies(allStudies);
-    }
+    setAvailableStudies(allStudies);
   }, [router]);
 
   // 시험번호 미리보기 갱신
@@ -304,7 +300,7 @@ export default function NewBinderPage() {
               <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-3">
                 <p className="text-sm font-bold text-slate-700">점검 대상 시험번호</p>
                 {availableStudies.length === 0 ? (
-                  <p className="text-sm text-slate-400">{currentUserRole === "qap" ? "담당 QAP로 지정된 시험이 없습니다." : "등록된 시험 바인더가 없습니다."}</p>
+                  <p className="text-sm text-slate-400">등록된 시험 바인더가 없습니다.</p>
                 ) : (
                   <div className="space-y-2">
                     {availableStudies.map(s => (

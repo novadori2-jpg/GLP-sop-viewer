@@ -37,6 +37,7 @@ export default function PDFCanvasViewer({
   currentUser,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [pdfDoc, setPdfDoc] = useState<any>(null);
   const [numPages, setNumPages] = useState<number>(0);
   const [scale, setScale] = useState<number>(1.2);
@@ -312,35 +313,42 @@ export default function PDFCanvasViewer({
         </div>
       )}
 
-      {/* PDF 페이지 리스트 */}
-      <div className="space-y-4">
-        {Array.from({ length: numPages }, (_, i) => i + 1).map((pageNumber) => (
-          <PDFPageRow
-            key={pageNumber}
-            pdfDoc={pdfDoc}
-            pageNumber={pageNumber}
-            scale={scale * userScale}
-            onScaleChange={(delta) => setUserScale(s => Math.min(3, Math.max(0.5, +(s * delta).toFixed(2))))}
-            drawingData={drawings[pageNumber]}
-            readOnly={readOnly}
-            tool={tool}
-            penSize={penSize}
-            sigLabelPos={sigLabelPos}
-            onDraw={(data) => onDraw(pageNumber, data)}
-            onAttemptEdit={onAttemptEdit}
-            typedTexts={typedTexts[pageNumber]}
-            canvasSignatures={canvasSignatures[pageNumber]}
-            strikeThroughs={strikeThroughs[pageNumber]}
-            onEraseTextSig={(x, y) => handleEraseAt(pageNumber, x, y)}
-            activeTextInput={activeTextInput}
-            setActiveTextInput={setActiveTextInput}
-            activeSigInput={activeSigInput}
-            setActiveSigInput={setActiveSigInput}
-            activeStrikeInput={activeStrikeInput}
-            setActiveStrikeInput={setActiveStrikeInput}
-            onAddText={(x, y, text) => handleAddText(pageNumber, x, y, text)}
-          />
-        ))}
+      {/* PDF 페이지 리스트 — 가로/세로 스크롤 컨테이너 */}
+      <div
+        ref={scrollContainerRef}
+        style={{ overflow: "auto", WebkitOverflowScrolling: "touch" as any }}
+        className="w-full"
+      >
+        <div className="space-y-4" style={{ width: "max-content", minWidth: "100%" }}>
+          {Array.from({ length: numPages }, (_, i) => i + 1).map((pageNumber) => (
+            <PDFPageRow
+              key={pageNumber}
+              pdfDoc={pdfDoc}
+              pageNumber={pageNumber}
+              scale={scale * userScale}
+              onScaleChange={(delta) => setUserScale(s => Math.min(3, Math.max(0.5, +(s * delta).toFixed(2))))}
+              scrollContainerRef={scrollContainerRef}
+              drawingData={drawings[pageNumber]}
+              readOnly={readOnly}
+              tool={tool}
+              penSize={penSize}
+              sigLabelPos={sigLabelPos}
+              onDraw={(data) => onDraw(pageNumber, data)}
+              onAttemptEdit={onAttemptEdit}
+              typedTexts={typedTexts[pageNumber]}
+              canvasSignatures={canvasSignatures[pageNumber]}
+              strikeThroughs={strikeThroughs[pageNumber]}
+              onEraseTextSig={(x, y) => handleEraseAt(pageNumber, x, y)}
+              activeTextInput={activeTextInput}
+              setActiveTextInput={setActiveTextInput}
+              activeSigInput={activeSigInput}
+              setActiveSigInput={setActiveSigInput}
+              activeStrikeInput={activeStrikeInput}
+              setActiveStrikeInput={setActiveStrikeInput}
+              onAddText={(x, y, text) => handleAddText(pageNumber, x, y, text)}
+            />
+          ))}
+        </div>
       </div>
 
       {/* 서명 모달 팝업 */}
@@ -377,7 +385,8 @@ interface PageRowProps {
   onDraw: (base64: string) => void;
   onAttemptEdit?: () => void;
   onScaleChange: (delta: number) => void;
-  
+  scrollContainerRef: React.RefObject<HTMLDivElement | null>;
+
   typedTexts?: TypedTextItem[];
   canvasSignatures?: CanvasSignatureItem[];
   strikeThroughs?: StrikeThroughItem[];
@@ -405,6 +414,7 @@ function PDFPageRow({
   onDraw,
   onAttemptEdit,
   onScaleChange,
+  scrollContainerRef,
   typedTexts = [],
   canvasSignatures = [],
   strikeThroughs = [],
@@ -641,9 +651,10 @@ function PDFPageRow({
         const newDist = getTouchDist(e.touches);
         const mid = getTouchMid(e.touches);
 
-        // 2손가락 패닝: 중심점 이동량만큼 스크롤
-        if (pinchLastMid.current) {
-          window.scrollBy(
+        // 2손가락 패닝: 중심점 이동량만큼 스크롤 컨테이너 스크롤
+        const sc = scrollContainerRef.current;
+        if (pinchLastMid.current && sc) {
+          sc.scrollBy(
             pinchLastMid.current.x - mid.x,
             pinchLastMid.current.y - mid.y,
           );
@@ -654,17 +665,22 @@ function PDFPageRow({
         const delta = newDist / pinchStartDist.current;
         if (Math.abs(delta - pinchStartScale.current) > 0.02) {
           const ratio = delta / pinchStartScale.current;
-          const sx = window.scrollX;
-          const sy = window.scrollY;
+
+          // 핀치 중심점을 스크롤 컨테이너 기준 좌표로 변환
+          const rect = sc?.getBoundingClientRect();
+          const containerMidX = mid.x - (rect?.left ?? 0);
+          const containerMidY = mid.y - (rect?.top ?? 0);
+          const sx = sc?.scrollLeft ?? 0;
+          const sy = sc?.scrollTop ?? 0;
 
           onScaleChange(ratio);
           pinchStartScale.current = delta;
 
-          // 스케일 변경 후 핀치 중심이 같은 화면 위치에 오도록 스크롤 보정
+          // 스케일 변경 후 핀치 중심이 같은 위치에 오도록 스크롤 보정
           requestAnimationFrame(() => {
-            window.scrollBy(
-              (sx + mid.x) * (ratio - 1),
-              (sy + mid.y) * (ratio - 1)
+            sc?.scrollBy(
+              (sx + containerMidX) * (ratio - 1),
+              (sy + containerMidY) * (ratio - 1)
             );
           });
         }

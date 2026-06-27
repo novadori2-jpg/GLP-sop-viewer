@@ -202,73 +202,71 @@ export default function PDFCanvasViewer({
   }
 
   return (
-    <div ref={containerRef} className="space-y-4 w-full">
+    <div ref={containerRef} className="space-y-4 w-full" style={{ paddingTop: readOnly ? 0 : "44px" }}>
       {/* 툴바 */}
       {!readOnly && (
-        <div className="sticky top-[60px] z-30 bg-slate-900 text-white rounded-xl px-4 py-2.5 flex items-center gap-2 flex-wrap shadow-md">
-          <span className="text-xs text-slate-400 mr-1">도구:</span>
-          <button
-            onClick={() => setTool("pen")}
-            className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-              tool === "pen" ? "bg-blue-600 text-white" : "bg-slate-800 text-slate-300 hover:bg-slate-700"
-            }`}
-          >
-            ✏️ 펜 필기
-          </button>
-          
+        <div className="fixed top-0 left-0 right-0 z-50 bg-slate-900 text-white px-3 py-1.5 flex items-center gap-1.5 flex-wrap shadow-lg">
           {!hasSignature ? (
             <button
               onClick={() => setTool("eraser")}
-              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                tool === "eraser" ? "bg-red-600 text-white" : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+              className={`px-2 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
+                tool === "eraser" ? "bg-red-600 text-white" : "bg-slate-700 text-slate-300"
               }`}
             >
               🧹 지우개
             </button>
           ) : (
-            <span className="text-[10px] text-amber-500 bg-amber-950/40 border border-amber-900/40 px-2.5 py-1.5 rounded-lg font-semibold select-none">
-              🔒 GLP 서명 완료 (지우개 제한)
+            <span className="text-[10px] text-amber-400 bg-amber-950/40 border border-amber-900/40 px-2 py-1 rounded-md font-semibold select-none">
+              🔒 서명완료
             </span>
           )}
 
           <button
-            onClick={() => setTool("text")}
-            className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-              tool === "text" ? "bg-indigo-600 text-white" : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+            onClick={() => setTool("pen")}
+            className={`px-2 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
+              tool === "pen" ? "bg-blue-600 text-white" : "bg-slate-700 text-slate-300"
             }`}
           >
-            🔤 텍스트 입력
+            ✏️ 펜
+          </button>
+
+          <button
+            onClick={() => setTool("text")}
+            className={`px-2 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
+              tool === "text" ? "bg-indigo-600 text-white" : "bg-slate-700 text-slate-300"
+            }`}
+          >
+            🔤 텍스트
           </button>
 
           <button
             onClick={() => setTool("signature")}
-            className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-              tool === "signature" ? "bg-green-600 text-white" : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+            className={`px-2 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
+              tool === "signature" ? "bg-green-600 text-white" : "bg-slate-700 text-slate-300"
             }`}
           >
-            ✍️ 본문 서명
+            ✍️ 서명
           </button>
 
           {hasSignature && (
             <button
               onClick={() => setTool("strikethrough")}
-              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                tool === "strikethrough" ? "bg-red-600 text-white" : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+              className={`px-2 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
+                tool === "strikethrough" ? "bg-red-600 text-white" : "bg-slate-700 text-slate-300"
               }`}
             >
-              ❌ 취선 (수정선)
+              ❌ 취선
             </button>
           )}
 
           {tool === "pen" && (
-            <div className="flex items-center gap-2 border-l border-slate-700 pl-3">
-              <span className="text-xs text-slate-400">두께:</span>
+            <div className="flex items-center gap-1.5 border-l border-slate-700 pl-2">
               {[1, 2, 4].map((size) => (
                 <button
                   key={size}
                   onClick={() => setPenSize(size)}
-                  className={`w-6 h-6 rounded-full border flex items-center justify-center transition-colors cursor-pointer ${
-                    penSize === size ? "border-blue-500 bg-blue-900/50" : "border-slate-600 bg-slate-800 hover:bg-slate-700"
+                  className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors cursor-pointer ${
+                    penSize === size ? "border-blue-400 bg-blue-900/60" : "border-slate-600 bg-slate-800"
                   }`}
                 >
                   <div className="rounded-full bg-white" style={{ width: size * 2, height: size * 2 }} />
@@ -277,41 +275,35 @@ export default function PDFCanvasViewer({
             </div>
           )}
 
-          {/* 확대/축소 */}
-          <div className="flex items-center gap-1 border-l border-slate-700 pl-3 ml-auto">
-            <button
-              onClick={() => setUserScale(s => Math.max(0.5, +(s - 0.25).toFixed(2)))}
-              className="w-7 h-7 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 text-sm font-bold flex items-center justify-center cursor-pointer"
-            >−</button>
-            <span className="text-[10px] text-slate-400 w-9 text-center">{Math.round(userScale * 100)}%</span>
-            <button
-              onClick={() => setUserScale(s => Math.min(3, +(s + 0.25).toFixed(2)))}
-              className="w-7 h-7 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 text-sm font-bold flex items-center justify-center cursor-pointer"
-            >+</button>
-          </div>
-
-          {/* 서명 이름/날짜 위치 토글 */}
           {tool === "signature" && (
-            <div className="flex items-center gap-1.5 border-l border-slate-700 pl-3">
-              <span className="text-xs text-slate-400">이름/날짜:</span>
+            <div className="flex items-center gap-1 border-l border-slate-700 pl-2">
               <button
                 onClick={() => setSigLabelPos("below")}
-                className={`px-2 py-1 rounded text-[10px] font-bold transition-all cursor-pointer ${
-                  sigLabelPos === "below" ? "bg-green-600 text-white" : "bg-slate-800 text-slate-400 hover:bg-slate-700"
+                className={`px-1.5 py-0.5 rounded text-[10px] font-bold cursor-pointer ${
+                  sigLabelPos === "below" ? "bg-green-600 text-white" : "bg-slate-700 text-slate-400"
                 }`}
-              >
-                하단
-              </button>
+              >하단</button>
               <button
                 onClick={() => setSigLabelPos("left")}
-                className={`px-2 py-1 rounded text-[10px] font-bold transition-all cursor-pointer ${
-                  sigLabelPos === "left" ? "bg-green-600 text-white" : "bg-slate-800 text-slate-400 hover:bg-slate-700"
+                className={`px-1.5 py-0.5 rounded text-[10px] font-bold cursor-pointer ${
+                  sigLabelPos === "left" ? "bg-green-600 text-white" : "bg-slate-700 text-slate-400"
                 }`}
-              >
-                좌측
-              </button>
+              >좌측</button>
             </div>
           )}
+
+          {/* 확대/축소 */}
+          <div className="flex items-center gap-1 border-l border-slate-700 pl-2 ml-auto">
+            <button
+              onClick={() => setUserScale(s => Math.max(0.5, +(s - 0.25).toFixed(2)))}
+              className="w-6 h-6 rounded bg-slate-700 text-slate-300 text-sm font-bold flex items-center justify-center cursor-pointer"
+            >−</button>
+            <span className="text-[10px] text-slate-400 w-8 text-center">{Math.round(userScale * 100)}%</span>
+            <button
+              onClick={() => setUserScale(s => Math.min(3, +(s + 0.25).toFixed(2)))}
+              className="w-6 h-6 rounded bg-slate-700 text-slate-300 text-sm font-bold flex items-center justify-center cursor-pointer"
+            >+</button>
+          </div>
         </div>
       )}
 

@@ -19,6 +19,7 @@ function EntryContent() {
   const [entry, setEntry] = useState<RecordEntry | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   // 서명 후 잠금 해제 상태 관리
   const [isEditUnlocked, setIsEditUnlocked] = useState(false);
@@ -134,14 +135,8 @@ function EntryContent() {
     await saveRecordEntry({ ...entry, updatedAt: new Date().toISOString() });
     setSaving(false);
     setIsEditUnlocked(false);
-    
-    if (entry.studyNumber) {
-      router.push(`/study/${entry.studyNumber}`);
-    } else if (entry.categoryType === "operational") {
-      router.push("/operations");
-    } else {
-      router.push(`/sop/${entry.sopId}`);
-    }
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
   };
 
 
@@ -201,9 +196,9 @@ function EntryContent() {
               </div>
             );
           })()}
-          <button onClick={handleSave} disabled={saving || (entry.status === "complete" && !isEditUnlocked)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold disabled:opacity-40 cursor-pointer">
-            {saving ? "저장 중..." : "저장"}
+          <button onClick={handleSave} disabled={saving}
+            className={`px-4 py-2 rounded-xl text-sm font-semibold cursor-pointer transition-colors ${saved ? "bg-green-600 text-white" : "bg-blue-600 text-white disabled:opacity-40"}`}>
+            {saving ? "저장 중..." : saved ? "✓ 저장됨" : "저장"}
           </button>
         </div>
       </header>

@@ -202,7 +202,7 @@ export default function PDFCanvasViewer({
   }
 
   return (
-    <div ref={containerRef} className="space-y-4 w-full" style={{ paddingTop: readOnly ? 0 : "44px" }}>
+    <div ref={containerRef} className="space-y-4 w-full">
       {/* 툴바 */}
       {!readOnly && (
         <div className="fixed top-0 left-0 right-0 z-50 bg-slate-900 text-white px-3 py-1.5 flex items-center gap-1.5 flex-wrap shadow-lg">

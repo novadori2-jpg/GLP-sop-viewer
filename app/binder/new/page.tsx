@@ -36,6 +36,8 @@ export default function NewBinderPage() {
   const [qaTargetStudyNumber, setQaTargetStudyNumber] = useState("");
   const [generatedNumber, setGeneratedNumber] = useState("");
   const [sdId, setSdId] = useState("");
+  const [investigatorIds, setInvestigatorIds] = useState<string[]>([]);
+  const [archivistId, setArchivistId] = useState("");
   const [qapId, setQapId] = useState("");
   const [tfmId, setTfmId] = useState("");
 
@@ -79,8 +81,17 @@ export default function NewBinderPage() {
   }, [step]);
 
   const sdUsers = users.filter(u => u.role === "sd");
+  // 시험담당자: investigator + sd (SD도 담당자로 참여 가능)
+  const investigatorUsers = users.filter(u => u.role === "investigator" || u.role === "sd");
+  const archivistUsers = users.filter(u => u.role === "archivist");
   const qapUsers = users.filter(u => u.role === "qap");
   const tfmUsers = users.filter(u => u.role === "tfm");
+
+  const toggleInvestigator = (id: string) => {
+    setInvestigatorIds(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
 
   const getUser = (id: string) => users.find(u => u.user_id === id);
 
@@ -155,6 +166,10 @@ export default function NewBinderPage() {
       startDate: now.slice(0, 10),
       sdId,
       directorName: sd?.name ?? sdId,
+      investigatorIds,
+      investigatorNames: investigatorIds.map(id => getUser(id)?.name ?? id),
+      archivistId: archivistId || undefined,
+      archivistName: archivistId ? getUser(archivistId)?.name : undefined,
       qapId,
       qaName: qap?.name ?? qapId,
       tfmId: tfm?.user_id,
@@ -277,6 +292,15 @@ export default function NewBinderPage() {
         {step === "info" && (
           <div className="space-y-4">
             <UserSelect label="시험책임자 (SD)" users={sdUsers} value={sdId} onChange={setSdId} />
+            {/* 시험담당자: 다중 선택 */}
+            <MultiUserSelect
+              label="시험담당자 (Investigator)"
+              note="SD도 담당자로 추가 가능, 여러 명 선택 가능"
+              users={investigatorUsers}
+              values={investigatorIds}
+              onToggle={toggleInvestigator}
+            />
+            <UserSelect label="자료보관책임자 (Archivist)" users={archivistUsers} value={archivistId} onChange={setArchivistId} optional />
             <UserSelect label="담당 QAP" users={qapUsers} value={qapId} onChange={setQapId} />
             {binderType === "qa" && (
               <UserSelect label="운영책임자 (TFM)" users={tfmUsers} value={tfmId} onChange={setTfmId} />
@@ -350,6 +374,10 @@ export default function NewBinderPage() {
               {binderType === "qa" && <InfoRow label="대상 시험" value={qaTargetStudyNumber} />}
               {binderType === "study" && <InfoRow label="시험 종류" value={STUDY_TYPE_LABELS[studyType]} />}
               <InfoRow label="시험책임자" value={getUser(sdId)?.name ?? sdId} />
+              {investigatorIds.length > 0 && (
+                <InfoRow label="시험담당자" value={investigatorIds.map(id => getUser(id)?.name ?? id).join(", ")} />
+              )}
+              {archivistId && <InfoRow label="자료보관책임자" value={getUser(archivistId)?.name ?? archivistId} />}
               <InfoRow label="담당 QAP" value={getUser(qapId)?.name ?? qapId} />
               {tfmId && <InfoRow label="운영책임자" value={getUser(tfmId)?.name ?? tfmId} />}
               <InfoRow label="기록지" value={`${selectedUrls.length}종 · 총 ${Object.values(selectedForms).reduce((a,b)=>a+b,0)}매`} />
@@ -400,19 +428,26 @@ export default function NewBinderPage() {
   );
 }
 
-function UserSelect({ label, users, value, onChange }: {
+function UserSelect({ label, users, value, onChange, optional }: {
   label: string;
   users: DBUser[];
   value: string;
   onChange: (id: string) => void;
+  optional?: boolean;
 }) {
   return (
     <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-2">
-      <p className="text-sm font-bold text-slate-700">{label}</p>
+      <div className="flex items-center gap-2">
+        <p className="text-sm font-bold text-slate-700">{label}</p>
+        {optional && <span className="text-[10px] bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded font-medium">선택</span>}
+      </div>
       {users.length === 0 ? (
         <p className="text-sm text-slate-400">해당 역할의 계정이 없습니다.</p>
       ) : (
         <div className="space-y-1.5">
+          {optional && value && (
+            <button onClick={() => onChange("")} className="text-xs text-slate-400 underline cursor-pointer mb-1">선택 해제</button>
+          )}
           {users.map(u => (
             <button key={u.user_id} onClick={() => onChange(u.user_id)}
               className={`w-full text-left px-3 py-2.5 rounded-xl border-2 cursor-pointer transition-all ${
@@ -427,6 +462,55 @@ function UserSelect({ label, users, value, onChange }: {
               </div>
             </button>
           ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MultiUserSelect({ label, note, users, values, onToggle }: {
+  label: string;
+  note?: string;
+  users: DBUser[];
+  values: string[];
+  onToggle: (id: string) => void;
+}) {
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-2">
+      <div>
+        <div className="flex items-center gap-2">
+          <p className="text-sm font-bold text-slate-700">{label}</p>
+          <span className="text-[10px] bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded font-medium">다중선택</span>
+          {values.length > 0 && <span className="text-[10px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded font-bold">{values.length}명</span>}
+        </div>
+        {note && <p className="text-[10px] text-slate-400 mt-0.5">{note}</p>}
+      </div>
+      {users.length === 0 ? (
+        <p className="text-sm text-slate-400">해당 역할의 계정이 없습니다.</p>
+      ) : (
+        <div className="space-y-1.5">
+          {users.map(u => {
+            const selected = values.includes(u.user_id);
+            return (
+              <button key={u.user_id} onClick={() => onToggle(u.user_id)}
+                className={`w-full text-left px-3 py-2.5 rounded-xl border-2 cursor-pointer transition-all ${
+                  selected ? "border-blue-500 bg-blue-50" : "border-slate-200 bg-white"
+                }`}>
+                <div className="flex items-center gap-3">
+                  <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${
+                    selected ? "border-blue-500 bg-blue-500" : "border-slate-300"
+                  }`}>
+                    {selected && <span className="text-white text-xs font-bold">✓</span>}
+                  </div>
+                  <div>
+                    <span className="font-bold text-slate-900 text-sm">{u.name}</span>
+                    <span className="text-xs text-slate-400 ml-2">{u.department}</span>
+                    {u.role === "sd" && <span className="text-[10px] bg-blue-100 text-blue-600 ml-2 px-1 py-0.5 rounded font-bold">SD</span>}
+                  </div>
+                </div>
+              </button>
+            );
+          })}
         </div>
       )}
     </div>

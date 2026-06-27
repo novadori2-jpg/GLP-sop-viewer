@@ -33,6 +33,10 @@ export interface StudyInfo {
   // 담당자
   sdId: string;
   directorName: string;       // SD 이름
+  investigatorIds?: string[]; // 시험담당자 IDs (여러 명 가능, SD 포함 가능)
+  investigatorNames?: string[];
+  archivistId?: string;       // 자료보관책임자
+  archivistName?: string;
   qapId: string;
   qaName: string;             // QAP 이름
   tfmId?: string;             // QA 바인더용: 운영책임자 ID

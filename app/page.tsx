@@ -102,7 +102,7 @@ function SOPListContent() {
               )}
               <div>
                 <h1 className="text-xl font-black text-slate-900 tracking-tight">GLP SOP</h1>
-                <p className="text-xs text-slate-500">(주)아이에이아이 · 총 {totalCount}건</p>
+                <p className="text-xs text-slate-500">국제분석연구원(주) · 총 {totalCount}건</p>
               </div>
             </div>
             <div className="flex items-center gap-2">

@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, Suspense } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { getStudiesList, getStudyRecords } from "@/lib/study-data";
+import { getStudyRecords } from "@/lib/study-data";
 import type { StudyInfo } from "@/lib/study-data";
 import type { RecordEntry, CurrentUser } from "@/lib/record-data";
 import { getCurrentUser } from "@/lib/record-data";
@@ -18,18 +18,26 @@ function QABinderContent() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const load = async () => {
     const u = getCurrentUser();
     if (!u) { router.push("/login"); return; }
     setUser(u);
 
-    const list = getStudiesList();
-    const found = list.find(s => s.studyNumber === binderNumber);
-    setBinder(found ?? null);
-
-    if (found) {
-      getStudyRecords(binderNumber).then(setRecords);
+    const res = await fetch("/api/binders");
+    if (res.ok) {
+      const list = await res.json();
+      const found = Array.isArray(list)
+        ? list.find((s: StudyInfo) => s.studyNumber === binderNumber) ?? null
+        : null;
+      setBinder(found);
+      if (found) {
+        const recs = await getStudyRecords(binderNumber);
+        setRecords(recs);
+      }
     }
     setLoading(false);
+    };
+    load();
   }, [binderNumber, router]);
 
   if (loading) return <div className="flex items-center justify-center min-h-screen text-slate-500">로딩 중...</div>;

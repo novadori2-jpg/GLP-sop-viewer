@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, Suspense } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { getStudiesList, saveStudiesList, getStudyRecords } from "@/lib/study-data";
+import { getStudyRecords } from "@/lib/study-data";
 import type { StudyInfo } from "@/lib/study-data";
 import type { RecordEntry, CurrentUser } from "@/lib/record-data";
 import { getCurrentUser } from "@/lib/record-data";
@@ -31,13 +31,17 @@ function StudyBinderContent() {
     window.addEventListener("storage", syncUser);
 
     const loadData = async () => {
-      const list = getStudiesList();
-      const currentStudy = list.find((s) => s.studyNumber === studyNumber);
-      setStudy(currentStudy ?? null);
-
-      if (currentStudy) {
-        const studyRecords = await getStudyRecords(studyNumber);
-        setRecords(studyRecords);
+      const res = await fetch("/api/binders");
+      if (res.ok) {
+        const list = await res.json();
+        const currentStudy = Array.isArray(list)
+          ? list.find((s: StudyInfo) => s.studyNumber === studyNumber) ?? null
+          : null;
+        setStudy(currentStudy);
+        if (currentStudy) {
+          const studyRecords = await getStudyRecords(studyNumber);
+          setRecords(studyRecords);
+        }
       }
       setLoading(false);
     };
@@ -53,24 +57,19 @@ function StudyBinderContent() {
     setRecords(studyRecords);
   };
 
-  const handleSubmitToQA = () => {
+  const handleSubmitToQA = async () => {
     if (!study) return;
-    const list = getStudiesList();
-    const updated = list.map((s) => {
-      if (s.studyNumber === studyNumber) {
-        return { ...s, status: "submitted_for_qa" as const };
-      }
-      return s;
+    await fetch(`/api/binders/${encodeURIComponent(studyNumber)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "submitted_for_qa" }),
     });
-    saveStudiesList(updated);
     setStudy({ ...study, status: "submitted_for_qa" });
   };
 
   const handleQASignoff = async (comments: string, signatureImage: string) => {
     if (!study) return;
-    
-    // 1. 시험 정보 업데이트 및 저장
-    const list = getStudiesList();
+
     const now = new Date().toISOString();
     const updatedStudy: StudyInfo = {
       ...study,
@@ -79,8 +78,16 @@ function StudyBinderContent() {
       qaStatementDate: now,
       qaStatementComments: comments,
     };
-    const updatedList = list.map((s) => (s.studyNumber === studyNumber ? updatedStudy : s));
-    saveStudiesList(updatedList);
+    await fetch(`/api/binders/${encodeURIComponent(studyNumber)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        status: "complete",
+        qaStatementSignature: signatureImage,
+        qaStatementDate: now,
+        qaStatementComments: comments,
+      }),
+    });
     setStudy(updatedStudy);
 
     // 2. 바인더에 속한 모든 하위 기록지들을 일괄 complete 상태로 락(Lock) 처리

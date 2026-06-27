@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getCurrentUser } from "@/lib/record-data";
 import {
-  generateStudyNumber, addStudy, getStudiesList,
+  generateStudyNumber, getStudiesList,
   STUDY_TYPE_LABELS,
 } from "@/lib/study-data";
 import type { StudyType, BinderType, BinderForm, StudyInfo } from "@/lib/study-data";
@@ -72,21 +72,33 @@ export default function NewBinderPage() {
       if (Array.isArray(data)) setUsers(data);
     });
 
-    // 시험바인더 전체 표시 (QAP도 모든 시험 선택 가능)
-    const allStudies = getStudiesList().filter(s => s.binderType === "study");
-    setAvailableStudies(allStudies);
+    // API에서 시험바인더 목록 로드 (실시간 동기화)
+    fetch("/api/binders").then(r => r.json()).then(data => {
+      if (Array.isArray(data)) {
+        setAvailableStudies(data.filter((s: StudyInfo) => s.binderType === "study"));
+      }
+    });
   }, [router]);
 
-  // 시험번호 미리보기 갱신
+  // 시험번호 미리보기 갱신 (API 데이터 기반)
   useEffect(() => {
     if (binderType === "study") {
-      setGeneratedNumber(generateStudyNumber(studyType, false));
+      // API에서 기존 바인더 목록을 가져와 다음 일련번호 계산
+      fetch("/api/binders").then(r => r.json()).then(data => {
+        if (!Array.isArray(data)) return;
+        const year = new Date().getFullYear().toString().slice(2);
+        const prefix = studyType + year;
+        let maxSerial = 0;
+        for (const s of data) {
+          if (s.studyNumber?.startsWith(prefix)) {
+            const serial = parseInt(s.studyNumber.slice(prefix.length), 10);
+            if (!isNaN(serial) && serial > maxSerial) maxSerial = serial;
+          }
+        }
+        setGeneratedNumber(prefix + String(maxSerial + 1).padStart(3, "0"));
+      });
     } else {
-      if (qaTargetStudyNumber) {
-        setGeneratedNumber("QA " + qaTargetStudyNumber);
-      } else {
-        setGeneratedNumber("");
-      }
+      setGeneratedNumber(qaTargetStudyNumber ? "QA " + qaTargetStudyNumber : "");
     }
   }, [binderType, studyType, qaTargetStudyNumber]);
 
@@ -205,7 +217,19 @@ export default function NewBinderPage() {
       createdAt: now,
     };
 
-    addStudy(study);
+    const res = await fetch("/api/binders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(study),
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      alert(err.error ?? "바인더 생성에 실패했습니다.");
+      setSaving(false);
+      return;
+    }
+
     // QA 바인더는 전용 페이지로, 시험 바인더는 study 페이지로
     if (binderType === "qa") {
       router.push(`/binder/qa/${encodeURIComponent(generatedNumber)}`);

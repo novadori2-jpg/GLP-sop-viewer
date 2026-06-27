@@ -8,7 +8,6 @@ import SOPCard from "@/components/SOPCard";
 import { getCurrentUser, setCurrentUser } from "@/lib/record-data";
 import type { CurrentUser } from "@/lib/record-data";
 import dynamic from "next/dynamic";
-import { getStudiesList, deleteStudy } from "@/lib/study-data";
 import type { StudyInfo } from "@/lib/study-data";
 import { getPermissions } from "@/lib/permissions";
 
@@ -41,7 +40,9 @@ function SOPListContent() {
       return;
     }
     setLocalUser(user);
-    setStudies(getStudiesList());
+    fetch("/api/binders").then(r => r.json()).then(data => {
+      if (Array.isArray(data)) setStudies(data);
+    });
 
     const syncUser = () => {
       const u = getCurrentUser();
@@ -332,9 +333,9 @@ function SOPListContent() {
                       className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 cursor-pointer">
                       취소
                     </button>
-                    <button onClick={() => {
-                      deleteStudy(deleteConfirm);
-                      setStudies(getStudiesList());
+                    <button onClick={async () => {
+                      await fetch(`/api/binders/${encodeURIComponent(deleteConfirm)}`, { method: "DELETE" });
+                      setStudies(prev => prev.filter(s => s.studyNumber !== deleteConfirm));
                       setDeleteConfirm(null);
                     }}
                       className="flex-1 py-2.5 rounded-xl bg-red-600 text-white text-sm font-bold cursor-pointer">

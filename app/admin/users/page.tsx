@@ -15,6 +15,7 @@ const ROLE_COLORS: Record<UserRole, string> = {
   archivist: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30",
   qap: "bg-red-500/20 text-red-300 border-red-500/30",
   pi: "bg-cyan-500/20 text-cyan-300 border-cyan-500/30",
+  formulator: "bg-orange-500/20 text-orange-300 border-orange-500/30",
 };
 
 interface DBUser {

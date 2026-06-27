@@ -86,6 +86,16 @@ export const PERMISSIONS: Record<UserRole, RolePermissions> = {
     canSignAsReviewer: [...ANALYSIS_CATEGORIES],
     canReviewStudyBinder: false,
   },
+  formulator: {
+    // 조제책임자: 시험 관련 기록지 작성 및 서명
+    canViewAllSOPs: true,
+    canAccessOperations: false,
+    canViewStudyBinder: true,
+    canCreateRecord: [...TEST_CATEGORIES],
+    canSignAsAuthor: [...TEST_CATEGORIES],
+    canSignAsReviewer: [...TEST_CATEGORIES],
+    canReviewStudyBinder: false,
+  },
 };
 
 export function getPermissions(role: UserRole): RolePermissions {

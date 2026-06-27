@@ -37,6 +37,8 @@ export interface StudyInfo {
   investigatorNames?: string[];
   archivistId?: string;       // 자료보관책임자
   archivistName?: string;
+  formulatorId?: string;      // 조제책임자
+  formulatorName?: string;
   qapId: string;
   qaName: string;             // QAP 이름
   tfmId?: string;             // QA 바인더용: 운영책임자 ID

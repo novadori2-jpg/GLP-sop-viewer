@@ -21,6 +21,7 @@ function QABinderContent() {
     const load = async () => {
     const u = getCurrentUser();
     if (!u) { router.push("/login"); return; }
+    if (!["qap", "tfm", "admin"].includes(u.role)) { router.push("/"); return; }
     setUser(u);
 
     const res = await fetch("/api/binders");

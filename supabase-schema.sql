@@ -43,6 +43,8 @@ CREATE TABLE IF NOT EXISTS binders (
   investigator_names JSONB DEFAULT '[]',
   archivist_id TEXT,
   archivist_name TEXT,
+  formulator_id TEXT,
+  formulator_name TEXT,
   qap_id TEXT,
   qa_name TEXT,
   tfm_id TEXT,

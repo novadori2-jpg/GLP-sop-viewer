@@ -120,7 +120,7 @@ export interface RecordEntry {
 }
 
 
-export type UserRole = "admin" | "tfm" | "sd" | "investigator" | "archivist" | "qap" | "pi";
+export type UserRole = "admin" | "tfm" | "sd" | "investigator" | "archivist" | "qap" | "pi" | "formulator";
 
 export interface CurrentUser {
   id: string;

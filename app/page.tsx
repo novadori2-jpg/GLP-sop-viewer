@@ -274,7 +274,9 @@ function SOPListContent() {
               </svg>
             </Link>
             <div className="grid gap-3">
-              {studies.map((study) => (
+              {studies.filter(study =>
+                study.binderType !== "qa" || ["qap", "tfm", "admin"].includes(currentUser?.role ?? "")
+              ).map((study) => (
                 <div key={study.studyNumber} className="relative">
                   <Link
                     href={study.binderType === "qa"

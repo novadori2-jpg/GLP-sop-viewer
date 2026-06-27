@@ -39,6 +39,7 @@ export default function NewBinderPage() {
   const [sdId, setSdId] = useState("");
   const [investigatorIds, setInvestigatorIds] = useState<string[]>([]);
   const [archivistId, setArchivistId] = useState("");
+  const [formulatorId, setFormulatorId] = useState("");
   const [qapId, setQapId] = useState("");
   const [tfmId, setTfmId] = useState("");
 
@@ -113,6 +114,7 @@ export default function NewBinderPage() {
   // 시험담당자: investigator + sd (SD도 담당자로 참여 가능)
   const investigatorUsers = users.filter(u => u.role === "investigator" || u.role === "sd");
   const archivistUsers = users.filter(u => u.role === "archivist");
+  const formulatorUsers = users.filter(u => u.role === "formulator");
   const qapUsers = users.filter(u => u.role === "qap");
   const tfmUsers = users.filter(u => u.role === "tfm");
 
@@ -176,9 +178,9 @@ export default function NewBinderPage() {
   const handleCreate = async () => {
     setSaving(true);
     const sd = getUser(sdId);
-    // QA 바인더: 현재 로그인한 QAP가 자동으로 담당자
     const qapUser = getUser(qapId) ?? users.find(u => u.user_id === currentUserId);
     const tfm = tfmId ? getUser(tfmId) : undefined;
+    const formulator = formulatorId ? getUser(formulatorId) : undefined;
 
     const forms: BinderForm[] = selectedUrls.map(url => {
       const pdf = pdfs.find(p => p.url === url)!;
@@ -209,6 +211,8 @@ export default function NewBinderPage() {
       investigatorNames: binderType === "study" ? investigatorIds.map(id => getUser(id)?.name ?? id) : [],
       archivistId: binderType === "study" ? (archivistId || undefined) : undefined,
       archivistName: binderType === "study" && archivistId ? getUser(archivistId)?.name : undefined,
+      formulatorId: binderType === "study" ? (formulator?.user_id) : undefined,
+      formulatorName: binderType === "study" ? formulator?.name : undefined,
       qapId: qapUser?.user_id ?? qapId,
       qaName: qapUser?.name ?? qapId,
       tfmId: tfm?.user_id,
@@ -361,6 +365,7 @@ export default function NewBinderPage() {
               onToggle={toggleInvestigator}
             />
             <UserSelect label="자료보관책임자 (Archivist)" users={archivistUsers} value={archivistId} onChange={setArchivistId} optional />
+            <UserSelect label="조제책임자 (Formulator)" users={formulatorUsers} value={formulatorId} onChange={setFormulatorId} optional />
             <UserSelect label="담당 QAP" users={qapUsers} value={qapId} onChange={setQapId} />
           </div>
         )}

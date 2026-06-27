@@ -20,6 +20,7 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   archivist: "자료보관책임자",
   qap: "QAP",
   pi: "분석책임자",
+  formulator: "조제책임자",
 };
 
 export const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
@@ -30,7 +31,31 @@ export const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
   archivist: "자료보관책임자 (Archivist)",
   qap: "QAP (신뢰성보증원)",
   pi: "분석책임자 (Principal Investigator)",
+  formulator: "조제책임자 (Formulator)",
 };
+
+// 기록지 카테고리별 접근 가능 역할
+export const CATEGORY_ACCESS: Record<string, UserRole[]> = {
+  study: ["admin", "sd", "investigator", "pi", "formulator"],
+  qa: ["admin", "qap"],
+  operation: [], // 빈 배열 = 모든 역할 허용
+};
+
+// 파일명 접두사 → 카테고리 매핑 (ECT/GCT 등 = 시험, GQA = QA, GMS = 운영)
+export const PREFIX_CATEGORY: Record<string, "study" | "qa" | "operation"> = {
+  ECT: "study",
+  GCT: "study",
+  DCT: "study",
+  ACT: "study",
+  GQA: "qa",
+  GMS: "operation",
+};
+
+export function canAccessCategory(role: UserRole, category: "study" | "qa" | "operation"): boolean {
+  const allowed = CATEGORY_ACCESS[category];
+  if (!allowed || allowed.length === 0) return true; // 운영: 모두 허용
+  return allowed.includes(role);
+}
 
 // 초기 기본 계정 (최초 1회 localStorage로 복사됨)
 export const DEFAULT_CREDENTIALS: UserCredential[] = [
@@ -97,11 +122,20 @@ export const DEFAULT_CREDENTIALS: UserCredential[] = [
     email: "tfm@iai-glp.co.kr",
     isDefault: true,
   },
+  {
+    id: "formulator",
+    name: "최조제",
+    role: "formulator",
+    password: "form1234",
+    department: "조제실",
+    email: "formulator@iai-glp.co.kr",
+    isDefault: true,
+  },
 ];
 
 const USERS_STORAGE_KEY = "glp-users";
 const USERS_VERSION_KEY = "glp-users-version";
-const CURRENT_VERSION = "3"; // tfm 기본 계정 추가
+const CURRENT_VERSION = "4"; // formulator 역할 추가
 
 // localStorage에서 모든 사용자 불러오기 (없으면 기본값으로 초기화)
 export function getAllUsers(): UserCredential[] {

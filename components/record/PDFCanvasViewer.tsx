@@ -599,6 +599,7 @@ function PDFPageRow({
   // 3. 터치 처리: 1손가락=필기(스크롤 차단), 2손가락=스크롤/핀치줌(필기 차단)
   const pinchStartDist = useRef<number | null>(null);
   const pinchStartScale = useRef<number>(1);
+  const pinchLastMid = useRef<{ x: number; y: number } | null>(null); // 2손가락 패닝용 이전 중심점
   const isPinching = useRef<boolean>(false); // 핀치 중 필기 완전 차단용
 
   useEffect(() => {
@@ -611,6 +612,11 @@ function PDFPageRow({
       return Math.hypot(dx, dy);
     };
 
+    const getTouchMid = (touches: TouchList) => ({
+      x: (touches[0].clientX + touches[1].clientX) / 2,
+      y: (touches[0].clientY + touches[1].clientY) / 2,
+    });
+
     const onTouchStart = (e: TouchEvent) => {
       if (e.touches.length === 1 && !readOnly && (tool === "pen" || tool === "strikethrough")) {
         e.preventDefault(); // 1손가락 필기 중 스크롤 방지
@@ -621,7 +627,8 @@ function PDFPageRow({
         lastPos.current = null;
         pinchStartDist.current = getTouchDist(e.touches);
         pinchStartScale.current = 1;
-        e.preventDefault(); // 핀치 시작 시 기본 브라우저 줌 방지
+        pinchLastMid.current = getTouchMid(e.touches);
+        e.preventDefault(); // 핀치/패닝 시작 시 기본 브라우저 동작 방지
       }
     };
 
@@ -632,14 +639,21 @@ function PDFPageRow({
       if (e.touches.length === 2 && pinchStartDist.current !== null) {
         e.preventDefault();
         const newDist = getTouchDist(e.touches);
+        const mid = getTouchMid(e.touches);
+
+        // 2손가락 패닝: 중심점 이동량만큼 스크롤
+        if (pinchLastMid.current) {
+          window.scrollBy(
+            pinchLastMid.current.x - mid.x,
+            pinchLastMid.current.y - mid.y,
+          );
+        }
+        pinchLastMid.current = mid;
+
+        // 핀치줌: 거리 변화가 충분할 때만 스케일 업데이트
         const delta = newDist / pinchStartDist.current;
-        // 핀치가 충분히 변화했을 때만 스케일 업데이트
         if (Math.abs(delta - pinchStartScale.current) > 0.02) {
           const ratio = delta / pinchStartScale.current;
-
-          // 핀치 중심점 (viewport 기준)
-          const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-          const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
           const sx = window.scrollX;
           const sy = window.scrollY;
 
@@ -649,8 +663,8 @@ function PDFPageRow({
           // 스케일 변경 후 핀치 중심이 같은 화면 위치에 오도록 스크롤 보정
           requestAnimationFrame(() => {
             window.scrollBy(
-              (sx + midX) * (ratio - 1),
-              (sy + midY) * (ratio - 1)
+              (sx + mid.x) * (ratio - 1),
+              (sy + mid.y) * (ratio - 1)
             );
           });
         }
@@ -660,6 +674,7 @@ function PDFPageRow({
     const onTouchEnd = (e: TouchEvent) => {
       if (e.touches.length < 2) {
         pinchStartDist.current = null;
+        pinchLastMid.current = null;
         isPinching.current = false;
       }
     };

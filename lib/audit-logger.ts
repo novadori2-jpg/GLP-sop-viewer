@@ -150,3 +150,8 @@ export async function getAllRecordEntries(): Promise<RecordEntry[]> {
   const database = await getDB();
   return database.getAll("recordEntries");
 }
+
+export async function deleteRecordEntry(id: string): Promise<void> {
+  const database = await getDB();
+  await database.delete("recordEntries", id);
+}

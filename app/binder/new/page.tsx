@@ -48,27 +48,37 @@ export default function NewBinderPage() {
   const [pdfSearch, setPdfSearch] = useState("");
 
   const [users, setUsers] = useState<DBUser[]>([]);
-  const [studies, setStudies] = useState<StudyInfo[]>([]);
+  // QAP용: 자신이 담당 QAP로 지정된 시험바인더만 표시
+  const [availableStudies, setAvailableStudies] = useState<StudyInfo[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string>("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     const u = getCurrentUser();
     if (!u) { router.push("/login"); return; }
-    // 로그인 사용자 권한 체크: SD만 시험바인더, QAP만 QA바인더 생성 가능
     if (u.role !== "sd" && u.role !== "qap" && u.role !== "admin") {
       router.push("/");
       return;
     }
     setCurrentUserRole(u.role);
-    // 역할에 따라 기본 바인더 타입 고정
+    setCurrentUserId(u.id);
     if (u.role === "sd") setBinderType("study");
-    if (u.role === "qap") setBinderType("qa");
+    if (u.role === "qap") {
+      setBinderType("qa");
+      setQapId(u.id); // QAP는 자신이 자동 지정
+    }
 
-    // Supabase에 등록된 실제 사용자 목록 로드 (모든 로그인 사용자 접근 가능)
     fetch("/api/users/members").then(r => r.json()).then(data => {
       if (Array.isArray(data)) setUsers(data);
     });
-    setStudies(getStudiesList().filter(s => s.binderType === "study"));
+
+    // QAP: 자신이 담당 QAP로 지정된 시험바인더만, SD: 모든 시험바인더
+    const allStudies = getStudiesList().filter(s => s.binderType === "study");
+    if (u.role === "qap") {
+      setAvailableStudies(allStudies.filter(s => s.qapId === u.id));
+    } else {
+      setAvailableStudies(allStudies);
+    }
   }, [router]);
 
   // 시험번호 미리보기 갱신
@@ -130,26 +140,36 @@ export default function NewBinderPage() {
   const selectedUrls = Object.keys(selectedForms);
 
   const canGoNext = () => {
-    if (step === "type") return true;
+    if (step === "type") {
+      if (binderType === "study") return true;
+      return !!qaTargetStudyNumber; // QA는 대상 시험 선택 필수
+    }
     if (step === "info") {
-      if (!sdId || !qapId) return false;
-      if (binderType === "qa" && (!tfmId || !qaTargetStudyNumber)) return false;
-      return true;
+      return !!sdId && !!qapId;
     }
     if (step === "forms") return selectedUrls.length > 0;
     return true;
   };
 
   const next = () => {
-    if (step === "type") setStep("info");
-    else if (step === "info") setStep("forms");
+    if (step === "type") {
+      // QA 바인더는 담당자 지정 단계 없이 바로 기록지 선택
+      setStep(binderType === "qa" ? "forms" : "info");
+    } else if (step === "info") setStep("forms");
     else if (step === "forms") setStep("confirm");
+  };
+
+  const back = () => {
+    if (step === "info") setStep("type");
+    else if (step === "forms") setStep(binderType === "qa" ? "type" : "info");
+    else if (step === "confirm") setStep("forms");
   };
 
   const handleCreate = async () => {
     setSaving(true);
     const sd = getUser(sdId);
-    const qap = getUser(qapId);
+    // QA 바인더: 현재 로그인한 QAP가 자동으로 담당자
+    const qapUser = getUser(qapId) ?? users.find(u => u.user_id === currentUserId);
     const tfm = tfmId ? getUser(tfmId) : undefined;
 
     const forms: BinderForm[] = selectedUrls.map(url => {
@@ -175,14 +195,14 @@ export default function NewBinderPage() {
       testSubstance: "",
       status: "ongoing",
       startDate: now.slice(0, 10),
-      sdId,
-      directorName: sd?.name ?? sdId,
-      investigatorIds,
-      investigatorNames: investigatorIds.map(id => getUser(id)?.name ?? id),
-      archivistId: archivistId || undefined,
-      archivistName: archivistId ? getUser(archivistId)?.name : undefined,
-      qapId,
-      qaName: qap?.name ?? qapId,
+      sdId: binderType === "study" ? sdId : "",
+      directorName: binderType === "study" ? (sd?.name ?? sdId) : "",
+      investigatorIds: binderType === "study" ? investigatorIds : [],
+      investigatorNames: binderType === "study" ? investigatorIds.map(id => getUser(id)?.name ?? id) : [],
+      archivistId: binderType === "study" ? (archivistId || undefined) : undefined,
+      archivistName: binderType === "study" && archivistId ? getUser(archivistId)?.name : undefined,
+      qapId: qapUser?.user_id ?? qapId,
+      qaName: qapUser?.name ?? qapId,
       tfmId: tfm?.user_id,
       tfmName: tfm?.name,
       requiredForms: forms,
@@ -190,7 +210,12 @@ export default function NewBinderPage() {
     };
 
     addStudy(study);
-    router.push(`/study/${encodeURIComponent(generatedNumber)}`);
+    // QA 바인더는 전용 페이지로, 시험 바인더는 study 페이지로
+    if (binderType === "qa") {
+      router.push(`/binder/qa/${encodeURIComponent(generatedNumber)}`);
+    } else {
+      router.push(`/study/${encodeURIComponent(generatedNumber)}`);
+    }
   };
 
   return (
@@ -278,11 +303,11 @@ export default function NewBinderPage() {
             {binderType === "qa" && (
               <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-3">
                 <p className="text-sm font-bold text-slate-700">점검 대상 시험번호</p>
-                {studies.length === 0 ? (
-                  <p className="text-sm text-slate-400">등록된 시험 바인더가 없습니다.</p>
+                {availableStudies.length === 0 ? (
+                  <p className="text-sm text-slate-400">{currentUserRole === "qap" ? "담당 QAP로 지정된 시험이 없습니다." : "등록된 시험 바인더가 없습니다."}</p>
                 ) : (
                   <div className="space-y-2">
-                    {studies.map(s => (
+                    {availableStudies.map(s => (
                       <button key={s.studyNumber} onClick={() => setQaTargetStudyNumber(s.studyNumber)}
                         className={`w-full text-left px-3 py-2.5 rounded-xl border-2 cursor-pointer transition-all ${
                           qaTargetStudyNumber === s.studyNumber ? "border-blue-500 bg-blue-50" : "border-slate-200 bg-white"
@@ -304,11 +329,10 @@ export default function NewBinderPage() {
           </div>
         )}
 
-        {/* STEP 2: 담당자 지정 */}
+        {/* STEP 2: 담당자 지정 — 시험 바인더 전용 */}
         {step === "info" && (
-          <div className="space-y-4">
+          <div className="space-y-4 pb-24">
             <UserSelect label="시험책임자 (SD)" users={sdUsers} value={sdId} onChange={setSdId} />
-            {/* 시험담당자: 다중 선택 */}
             <MultiUserSelect
               label="시험담당자 (Investigator)"
               note="SD도 담당자로 추가 가능, 여러 명 선택 가능"
@@ -318,9 +342,6 @@ export default function NewBinderPage() {
             />
             <UserSelect label="자료보관책임자 (Archivist)" users={archivistUsers} value={archivistId} onChange={setArchivistId} optional />
             <UserSelect label="담당 QAP" users={qapUsers} value={qapId} onChange={setQapId} />
-            {binderType === "qa" && (
-              <UserSelect label="운영책임자 (TFM)" users={tfmUsers} value={tfmId} onChange={setTfmId} />
-            )}
           </div>
         )}
 
@@ -419,11 +440,7 @@ export default function NewBinderPage() {
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-4 py-3">
         <div className="max-w-xl mx-auto flex gap-3">
           {step !== "type" && (
-            <button onClick={() => {
-              if (step === "info") setStep("type");
-              else if (step === "forms") setStep("info");
-              else if (step === "confirm") setStep("forms");
-            }} className="px-5 py-3 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 cursor-pointer">
+            <button onClick={back} className="px-5 py-3 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 cursor-pointer">
               이전
             </button>
           )}

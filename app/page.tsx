@@ -276,7 +276,9 @@ function SOPListContent() {
               {studies.map((study) => (
                 <div key={study.studyNumber} className="relative">
                   <Link
-                    href={`/study/${encodeURIComponent(study.studyNumber)}`}
+                    href={study.binderType === "qa"
+                      ? `/binder/qa/${encodeURIComponent(study.studyNumber)}`
+                      : `/study/${encodeURIComponent(study.studyNumber)}`}
                     className="block p-5 bg-white border border-slate-200 rounded-2xl hover:border-blue-400 hover:bg-blue-50/10 transition-all shadow-sm pr-12"
                   >
                     <div className="flex items-center justify-between gap-2">

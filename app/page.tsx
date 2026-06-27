@@ -102,7 +102,7 @@ function SOPListContent() {
               )}
               <div>
                 <h1 className="text-xl font-black text-slate-900 tracking-tight">GLP SOP</h1>
-                <p className="text-xs text-slate-500">국제분석연구원(주) · 총 {totalCount}건</p>
+                <p className="text-xs text-slate-500">I.A.I · 총 {totalCount}건</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -250,13 +250,18 @@ function SOPListContent() {
                 총 {studies.length}건
               </span>
             </div>
-            <Link
-              href="/binder/new"
-              className="flex items-center gap-3 px-4 py-3.5 bg-blue-600 rounded-xl text-sm font-bold text-white shadow-sm"
-            >
-              <span className="text-lg">+</span>
-              <span>새 바인더 만들기</span>
-            </Link>
+            {(currentUser.role === "sd" || currentUser.role === "qap" || currentUser.role === "admin") && (
+              <Link
+                href="/binder/new"
+                className="flex items-center gap-3 px-4 py-3.5 bg-blue-600 rounded-xl text-sm font-bold text-white shadow-sm"
+              >
+                <span className="text-lg">+</span>
+                <span>
+                  {currentUser.role === "sd" ? "새 시험 바인더 만들기" :
+                   currentUser.role === "qap" ? "새 QA 바인더 만들기" : "새 바인더 만들기"}
+                </span>
+              </Link>
+            )}
             <Link
               href="/records"
               className="flex items-center gap-2 px-4 py-3 bg-slate-100 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700"

@@ -29,6 +29,7 @@ interface PdfFile {
 export default function NewBinderPage() {
   const router = useRouter();
   const [step, setStep] = useState<Step>("type");
+  const [currentUserRole, setCurrentUserRole] = useState<string>("");
 
   // 바인더 기본 정보
   const [binderType, setBinderType] = useState<BinderType>("study");
@@ -53,8 +54,18 @@ export default function NewBinderPage() {
   useEffect(() => {
     const u = getCurrentUser();
     if (!u) { router.push("/login"); return; }
-    // Supabase에 등록된 실제 사용자 목록 로드
-    fetch("/api/users").then(r => r.json()).then(data => {
+    // 로그인 사용자 권한 체크: SD만 시험바인더, QAP만 QA바인더 생성 가능
+    if (u.role !== "sd" && u.role !== "qap" && u.role !== "admin") {
+      router.push("/");
+      return;
+    }
+    setCurrentUserRole(u.role);
+    // 역할에 따라 기본 바인더 타입 고정
+    if (u.role === "sd") setBinderType("study");
+    if (u.role === "qap") setBinderType("qa");
+
+    // Supabase에 등록된 실제 사용자 목록 로드 (모든 로그인 사용자 접근 가능)
+    fetch("/api/users/members").then(r => r.json()).then(data => {
       if (Array.isArray(data)) setUsers(data);
     });
     setStudies(getStudiesList().filter(s => s.binderType === "study"));
@@ -216,12 +227,16 @@ export default function NewBinderPage() {
           <div className="space-y-3">
             <p className="text-sm text-slate-500">어떤 바인더를 만드시겠습니까?</p>
             {[
-              { type: "study" as BinderType, icon: "🧪", title: "시험 바인더", desc: "GLP 시험 기록지 묶음 (어류/물벼룩/조류 등)" },
-              { type: "qa" as BinderType, icon: "🔍", title: "QA 바인더", desc: "신뢰성보증 점검 기록지 묶음" },
-            ].map(opt => (
-              <button key={opt.type} onClick={() => setBinderType(opt.type)}
-                className={`w-full text-left p-4 rounded-2xl border-2 transition-all cursor-pointer ${
-                  binderType === opt.type ? "border-blue-500 bg-blue-50" : "border-slate-200 bg-white hover:border-slate-300"
+              { type: "study" as BinderType, icon: "🧪", title: "시험 바인더", desc: "GLP 시험 기록지 묶음 (어류/물벼룩/조류 등)", allowedRole: "sd" },
+              { type: "qa" as BinderType, icon: "🔍", title: "QA 바인더", desc: "신뢰성보증 점검 기록지 묶음", allowedRole: "qap" },
+            ].map(opt => {
+              const isAllowed = currentUserRole === "admin" || currentUserRole === opt.allowedRole;
+              return (
+              <button key={opt.type} onClick={() => isAllowed && setBinderType(opt.type)}
+                disabled={!isAllowed}
+                className={`w-full text-left p-4 rounded-2xl border-2 transition-all ${
+                  !isAllowed ? "border-slate-100 bg-slate-50 opacity-40 cursor-not-allowed" :
+                  binderType === opt.type ? "border-blue-500 bg-blue-50 cursor-pointer" : "border-slate-200 bg-white hover:border-slate-300 cursor-pointer"
                 }`}>
                 <div className="flex items-center gap-3">
                   <span className="text-2xl">{opt.icon}</span>
@@ -232,7 +247,8 @@ export default function NewBinderPage() {
                   {binderType === opt.type && <span className="ml-auto text-blue-600 font-bold">✓</span>}
                 </div>
               </button>
-            ))}
+              );
+            })}
 
             {/* 시험 종류 선택 (시험 바인더) */}
             {binderType === "study" && (
